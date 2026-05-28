@@ -308,14 +308,14 @@ module.exports = async function handler(req, res) {
 
       case 'getSupervisorsByProgram': {
         const [program] = args;
-        const rows = await sql`SELECT * FROM supervisors WHERE program = ${program}`;
+        const rows = await sql`SELECT * FROM supervisors WHERE program = ${program} AND supervisor_id != ${ADMIN_ID}`;
         return ok(rows.map(r => ({ id: r.supervisor_id, name: r.name, email: r.email })));
       }
 
       case 'getAllSupervisors': {
         const [sessionToken] = args;
         if (!await verifySession(sessionToken)) return ok([]);
-        const rows = await sql`SELECT * FROM supervisors ORDER BY name`;
+        const rows = await sql`SELECT * FROM supervisors WHERE supervisor_id != ${ADMIN_ID} ORDER BY name`;
         return ok(rows.map(r => ({ id: r.supervisor_id, name: r.name, program: r.program, email: r.email || '' })));
       }
 
@@ -336,7 +336,7 @@ module.exports = async function handler(req, res) {
         const [sessionToken] = args;
         const session = await verifySession(sessionToken);
         if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
-        const rows = await sql`SELECT * FROM supervisors ORDER BY name`;
+        const rows = await sql`SELECT * FROM supervisors WHERE supervisor_id != ${ADMIN_ID} ORDER BY name`;
         return ok({ success: true, supervisors: rows.map(r => ({ id: r.supervisor_id, name: r.name, program: r.program, email: r.email || '' })) });
       }
 
@@ -1020,6 +1020,7 @@ module.exports = async function handler(req, res) {
 
         if (updates.students !== undefined) {
           const submitted   = (updates.students || []).map(s => ({ ...s, studentId: String(s.studentId).trim(), studentName: String(s.studentName).trim() }));
+          if (!submitted.length) return ok({ success: false, message: 'A project must have at least one student.' });
           const submittedIds = submitted.map(s => s.studentId);
 
           const currentStudents = await sql`SELECT * FROM students WHERE project_id = ${projectId}`;

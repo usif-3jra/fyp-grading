@@ -189,18 +189,6 @@ body {
 .kpi-val  { font-size: 30px; font-weight: 800; line-height: 1; color: var(--navy); letter-spacing: -.03em; }
 .kpi-lbl  { font-size: 11px; color: var(--gray); text-transform: uppercase; letter-spacing: .07em; margin-top: 4px; font-weight: 500; }
 
-/* ── Online Users Panel ──────────────────────────────────── */
-.online-panel-inner {
-  background: rgba(255,255,255,.75);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(226,232,240,.8);
-  border-radius: 8px;
-  padding: 7px 16px;
-  display: inline-flex;
-  align-items: center;
-  box-shadow: var(--shadow-sm);
-}
-
 /* ── Main Wrap ───────────────────────────────────────────── */
 .main-wrap { max-width: 1400px; margin: 0 auto 60px; padding: 0 32px; }
 
@@ -483,7 +471,7 @@ body {
 
 /* ── Print ───────────────────────────────────────────────── */
 @media print {
-  #login-overlay, .app-header, .kpi-banner, .app-tabs, #online-panel,
+  #login-overlay, .app-header, .kpi-banner, .app-tabs,
   .section-hdr button, .btn, nav, #res-filter-type { display: none !important; }
   .tab-pane  { display: block !important; opacity: 1 !important; }
   .tab-body  { box-shadow: none; border: none; padding: 0; background: #fff; }

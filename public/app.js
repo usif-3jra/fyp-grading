@@ -99,8 +99,6 @@ const Auth = {
 
   logout() {
     InactivityTimer.stop();
-    Heartbeat.stop();
-    Online.stop();
     if (this.sessionToken) gsr('logoutSession', this.sessionToken).catch(() => {});
     this.supervisor   = null;
     this.sessionToken = null;
@@ -219,8 +217,6 @@ const App = {
     const manageBtn    = document.getElementById('btn-manage-users');
     if (manageBtn)     manageBtn.classList.toggle('d-none', !isAdmin);
 
-    const onlinePanel  = document.getElementById('online-panel');
-    if (onlinePanel)   onlinePanel.classList.toggle('d-none', !isAdmin);
 
     if (!isAdmin) {
       ['cfg-tw-weight','cfg-peer-weight','cfg-sup-weight'].forEach(id => {
@@ -263,8 +259,6 @@ const App = {
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('shown.bs.tab', () => TW.refreshProjectList());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('hide.bs.tab', () => TW.stopPolling());
     InactivityTimer.start();
-    Heartbeat.start();
-    if (Auth.supervisor && Auth.supervisor.isAdmin) Online.start();
   },
 
   async loadKPIs() {
@@ -277,49 +271,6 @@ const App = {
     } catch (e) { console.warn('KPI load failed', e); }
   },
 
-};
-
-// ── Heartbeat — keeps session alive every 60 s ────────────────────────
-
-const Heartbeat = {
-  _timer: null,
-  start() {
-    this.stop();
-    this._timer = setInterval(() => gsrAuth('heartbeat').catch(() => {}), 60000);
-  },
-  stop() {
-    if (this._timer) { clearInterval(this._timer); this._timer = null; }
-  },
-};
-
-// ── Online Users Panel (admin only) ───────────────────────────────────
-
-const Online = {
-  _timer: null,
-  async load() {
-    try {
-      const res = await gsrAuth('getOnlineUsers');
-      const el = document.getElementById('online-list');
-      if (!el) return;
-      if (!res.users || !res.users.length) {
-        el.textContent = 'Only you are online.';
-        return;
-      }
-      el.innerHTML = res.users.map(u =>
-        `<span class="me-3"><i class="fas fa-user-circle me-1 ${u.isAdmin ? 'text-warning' : 'text-success'}" style="font-size:10px;"></i>${escHtml(u.name)}</span>`
-      ).join('');
-    } catch (e) { /* silently ignore */ }
-  },
-  start() {
-    this.stop();
-    this.load();
-    this._timer = setInterval(() => this.load(), 60000);
-  },
-  stop() {
-    if (this._timer) { clearInterval(this._timer); this._timer = null; }
-    const el = document.getElementById('online-list');
-    if (el) el.textContent = 'Loading…';
-  },
 };
 
 // ── Tab 1: Registration ───────────────────────────────────────────────
