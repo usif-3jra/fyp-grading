@@ -1,0 +1,13 @@
+{
+  "name": "fyp-standalone-neonrenderbrevo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "express": "^4.18.2",
+    "nodemailer": "^6.9.0"
+  }
+}
