@@ -22,6 +22,8 @@ function createMailer() {
     host: 'smtp-relay.brevo.com',
     port: 587,
     secure: false,
+    pool: true,
+    maxConnections: 5,
     auth: { user: BREVO_USER, pass: BREVO_KEY },
   });
 }
@@ -475,8 +477,16 @@ module.exports = async function handler(req, res) {
 
       case 'getAllProjectsSummary': {
         const [sessionToken] = args;
-        if (!await verifySession(sessionToken)) return ok([]);
-        const data = await sql`SELECT project_id, title, type FROM projects ORDER BY title`;
+        const session = await verifySession(sessionToken);
+        if (!session) return ok([]);
+        let data;
+        if (session.is_admin) {
+          data = await sql`SELECT project_id, title, type FROM projects ORDER BY title`;
+        } else {
+          const needle = session.supervisor_id.trim().toLowerCase();
+          const all = await sql`SELECT project_id, title, type, supervisors FROM projects ORDER BY title`;
+          data = all.filter(p => (p.supervisors || '').split(',').map(x => x.trim().toLowerCase()).includes(needle));
+        }
         return ok(data.map(r => ({ ProjectID: r.project_id, Title: r.title, Type: r.type })));
       }
 
@@ -722,7 +732,7 @@ module.exports = async function handler(req, res) {
         const project = projectRows[0] || null;
         const mailer  = createMailer();
         const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
-        for (const a of (assignments || [])) {
+        await Promise.all((assignments || []).map(async a => {
           const link = `${APP_URL}/examiner.html?token=${a.token}`;
           const reportBlock = a.reportLink ? `<p><strong>Project Report:</strong><br/><a href="${a.reportLink}">${a.reportLink}</a></p>` : '';
           await mailer.sendMail({
@@ -741,7 +751,8 @@ module.exports = async function handler(req, res) {
             </div>`,
           });
           await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${a.assignmentId} AND status = 'Assigned'`;
-        }
+        }));
+        mailer.close();
         return ok({ success: true });
       }
 

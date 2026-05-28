@@ -288,6 +288,8 @@ const Reg = {
     this._setSemesterField();
     await this._loadMasterData();
     this._initFirstSupRow();
+    document.getElementById('studentRows').innerHTML = '';
+    this.studentCount = 0;
     this.addStudentRow();
     this.loadProjects();
 
