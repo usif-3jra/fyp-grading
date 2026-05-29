@@ -1,14 +1,13 @@
 // FYP Management System — Render/Express backend
-// Stack: Neon PostgreSQL + Brevo SMTP
+// Stack: Neon PostgreSQL + Brevo HTTP API
 
 const { neon } = require('@neondatabase/serverless');
 const crypto    = require('crypto');
-const nodemailer = require('nodemailer');
 
-const BREVO_USER  = process.env.BREVO_USER      || '';
-const BREVO_KEY   = process.env.BREVO_SMTP_KEY  || '';
-const APP_URL     = (process.env.APP_URL || 'https://your-app.onrender.com').replace(/\/$/, '');
-const PWD_SALT    = process.env.PWD_SALT || 'bau-fyp-salt-2025';
+const BREVO_USER    = process.env.BREVO_USER    || '';
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const APP_URL       = (process.env.APP_URL || 'https://your-app.onrender.com').replace(/\/$/, '');
+const PWD_SALT      = process.env.PWD_SALT || 'bau-fyp-salt-2025';
 
 const ADMIN_ID          = 'A20160170';
 const SESSION_TTL       = 8 * 60 * 60 * 1000;
@@ -17,15 +16,25 @@ const LOCKOUT_MS        = 15 * 60 * 1000;
 const TOKEN_EXPIRY_DAYS = 30;
 const DEFAULT_PWD       = 'fyp2025';
 
-function createMailer() {
-  return nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    pool: true,
-    maxConnections: 5,
-    auth: { user: BREVO_USER, pass: BREVO_KEY },
+async function sendEmail(to, subject, html) {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: 'FYP System — BAU', email: BREVO_USER },
+      to: [{ email: String(to) }],
+      subject,
+      htmlContent: html,
+    }),
   });
+  if (!res.ok) {
+    const err = await res.text().catch(() => String(res.status));
+    throw new Error(`Email failed (${res.status}): ${err}`);
+  }
 }
 
 function hashPwd(plain) {
@@ -347,18 +356,16 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
         const sent = [], failed = [];
-        const mailer = createMailer();
         for (const t of (targets || [])) {
           if (!t.id || !t.password) continue;
           await sql`UPDATE supervisors SET password = ${hashPwd(String(t.password))} WHERE supervisor_id = ${String(t.id)}`;
           const shouldEmail = t.sendEmail === true || t.sendEmail === 'true' || t.sendEmail === 1;
           if (t.email && shouldEmail) {
             try {
-              await mailer.sendMail({
-                from: `"FYP System — BAU" <${BREVO_USER}>`,
-                to: String(t.email),
-                subject: 'FYP Grading System — Your Login Credentials',
-                html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+              await sendEmail(
+                String(t.email),
+                'FYP Grading System — Your Login Credentials',
+                `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
                   <div style="background:#1e3a5f;padding:24px 28px;">
                     <h2 style="color:#fff;margin:0;font-size:20px;">FYP Management &amp; Grading System</h2>
                     <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">Beirut Arab University — Faculty of Engineering</p>
@@ -375,8 +382,8 @@ module.exports = async function handler(req, res) {
                       <a href="${APP_URL}" style="display:inline-block;background:#2563eb;color:#fff;padding:13px 32px;text-decoration:none;border-radius:7px;font-weight:700;">Open FYP Grading System</a>
                     </div>
                   </div>
-                </div>`,
-              });
+                </div>`
+              );
               sent.push(String(t.id));
             } catch { failed.push(String(t.id)); }
           }
@@ -730,16 +737,14 @@ module.exports = async function handler(req, res) {
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
         const projectRows = await sql`SELECT title FROM projects WHERE project_id = ${projectId}`;
         const project = projectRows[0] || null;
-        const mailer  = createMailer();
         const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         await Promise.all((assignments || []).map(async a => {
           const link = `${APP_URL}/examiner.html?token=${a.token}`;
           const reportBlock = a.reportLink ? `<p><strong>Project Report:</strong><br/><a href="${a.reportLink}">${a.reportLink}</a></p>` : '';
-          await mailer.sendMail({
-            from: `"FYP System — BAU" <${BREVO_USER}>`,
-            to: a.email,
-            subject: `FYP Grading Assignment – ${project ? project.title : projectId}`,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
+          await sendEmail(
+            a.email,
+            `FYP Grading Assignment – ${project ? project.title : projectId}`,
+            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
               <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
               <p>Dear ${a.name || 'Examiner'},</p>
               <p>You have been assigned to evaluate: <strong>${project ? project.title : projectId}</strong> (Role: ${a.type})</p>
@@ -748,11 +753,10 @@ module.exports = async function handler(req, res) {
               <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
               <p style="color:#666;font-size:12px;">This link is unique to you. Do not share it.</p>
               <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
-            </div>`,
-          });
+            </div>`
+          );
           await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${a.assignmentId} AND status = 'Assigned'`;
         }));
-        mailer.close();
         return ok({ success: true });
       }
 
@@ -866,22 +870,21 @@ module.exports = async function handler(req, res) {
         await sql`UPDATE examiners SET status = 'Submitted' WHERE assignment_id = ${assignment.assignment_id}`;
 
         try {
-          const mailer = createMailer();
           const rows = (gradesPayload.grades || []).map(g =>
             `<tr><td style="padding:6px 10px;border:1px solid #ddd;">${g.category}</td><td style="padding:6px 10px;border:1px solid #ddd;">${g.criterion}</td><td style="padding:6px 10px;border:1px solid #ddd;">${g.studentId||'—'}</td><td style="padding:6px 10px;border:1px solid #ddd;text-align:center;">${g.score}</td></tr>`
           ).join('');
-          await mailer.sendMail({
-            from: `"FYP System — BAU" <${BREVO_USER}>`, to: assignment.examiner_email,
-            subject: 'Grade Submission Receipt — FYP System',
-            html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;">
+          await sendEmail(
+            assignment.examiner_email,
+            'Grade Submission Receipt — FYP System',
+            `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;">
               <h2 style="color:#1e3a5f;">Grade Submission Confirmed</h2>
               <p>Dear ${assignment.examiner_name || 'Examiner'}, your grades have been successfully recorded.</p>
               <table style="border-collapse:collapse;width:100%;margin-top:16px;">
                 <thead><tr style="background:#1e3a5f;color:#fff;"><th style="padding:8px 10px;">Category</th><th style="padding:8px 10px;">Criterion</th><th style="padding:8px 10px;">Student</th><th style="padding:8px 10px;">Score</th></tr></thead>
                 <tbody>${rows}</tbody>
               </table>
-            </div>`,
-          });
+            </div>`
+          );
         } catch {}
 
         return ok({ success: true });
