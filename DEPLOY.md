@@ -1,4 +1,4 @@
-# Deployment Guide — Render + Neon + Brevo
+# Deployment Guide — Render + Neon + MailerSend
 
 ## 1. Prerequisites
 
@@ -6,7 +6,7 @@
 |------|---------|
 | [Render](https://render.com) | Hosting (free web service) |
 | [Neon](https://neon.tech) | PostgreSQL database |
-| [Brevo](https://brevo.com) | Transactional email (SMTP) |
+| [MailerSend](https://mailersend.com) | Transactional email (HTTP API) |
 
 ---
 
@@ -21,13 +21,14 @@
 
 ---
 
-## 3. Brevo — Email Setup
+## 3. MailerSend — Email Setup
 
-1. Create a free Brevo account at https://brevo.com
-2. Go to **SMTP & API → SMTP**
-3. Note your **Login** (your Brevo account email) → this is `BREVO_USER`
-4. Generate an **SMTP key** → this is `BREVO_SMTP_KEY`
-5. Verify your sender domain under **Senders & Domains** for best deliverability
+1. Create a free MailerSend account at https://mailersend.com
+2. Go to **Email → Domains** → click **Add Domain** and verify your sending domain
+   - Alternatively, use the provided trial domain for quick testing
+3. Go to **API Tokens** → click **Generate new token** → select **Full Access**
+4. Copy the token (starts with `eyJ...`) → this is `MAILERSEND_API_KEY`
+5. Note the verified sender email address → this is `SENDER_EMAIL`
 
 ---
 
@@ -55,8 +56,8 @@ In **Environment → Environment Variables**, add all of the following:
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `DATABASE_URL` | `postgresql://...` | Neon connection string |
-| `BREVO_USER` | `you@yourdomain.com` | Brevo SMTP login email |
-| `BREVO_SMTP_KEY` | `xsmtp-...` | Brevo SMTP key |
+| `SENDER_EMAIL` | `you@yourdomain.com` | Verified sender email address |
+| `MAILERSEND_API_KEY` | `eyJ...` | MailerSend API token |
 | `APP_URL` | `https://your-app.onrender.com` | Your deployed URL (no trailing slash) |
 | `PWD_SALT` | any random 32-char string | Password hashing salt |
 
@@ -98,8 +99,8 @@ This keeps the app warm at all times with zero cost.
 
 ```
 DATABASE_URL=postgresql://neonuser:password@ep-cool-name-12345.us-east-2.aws.neon.tech/neondb?sslmode=require
-BREVO_USER=yousef.ajrah@bau.edu.lb
-BREVO_SMTP_KEY=xsmtp-abcdefghijklmnop
+SENDER_EMAIL=yousef.ajrah@bau.edu.lb
+MAILERSEND_API_KEY=eyJhbGciOiJSUzI1NiJ9...
 APP_URL=https://fyp-system.onrender.com
 PWD_SALT=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
 ```
@@ -136,7 +137,7 @@ In Render **Settings → Custom Domains**, add your domain and follow the DNS in
 |-----------|--------|
 | **Hosting** | Render free Web Service — persistent Node.js/Express |
 | **Database** | Neon free tier — 0.5 GB storage, 1 compute unit |
-| **Email** | Brevo free tier — 300 emails/day |
+| **Email** | MailerSend free tier — 3,000 emails/month |
 | **Cold start** | ~30-60 s after 15 min idle (eliminated by UptimeRobot) |
 | **Deployments** | Unlimited (auto on git push) |
 | **Custom domain** | Yes (free with Render) |
@@ -148,5 +149,5 @@ In Render **Settings → Custom Domains**, add your domain and follow the DNS in
 |-----------|------|
 | Free tier sleeps after 15 min idle | Fix with UptimeRobot (free) |
 | Neon 0.5 GB storage cap | Enough for thousands of projects/grades |
-| Brevo 300 emails/day cap | Well within FYP system usage |
+| MailerSend 3,000 emails/month cap | Well within FYP system usage |
 | No WebSockets on free Render | Not needed — app uses HTTP polling |
