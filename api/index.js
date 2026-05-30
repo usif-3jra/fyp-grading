@@ -1,13 +1,13 @@
 // FYP Management System — Render/Express backend
-// Stack: Neon PostgreSQL + MailerSend HTTP API
+// Stack: Neon PostgreSQL + Brevo HTTP API
 
 const { neon } = require('@neondatabase/serverless');
 const crypto    = require('crypto');
 
-const SENDER_EMAIL       = process.env.SENDER_EMAIL       || '';
-const MAILERSEND_API_KEY = process.env.MAILERSEND_API_KEY || '';
-const APP_URL            = (process.env.APP_URL || 'https://your-app.onrender.com').replace(/\/$/, '');
-const PWD_SALT           = process.env.PWD_SALT || 'bau-fyp-salt-2025';
+const BREVO_USER    = process.env.BREVO_USER    || '';
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const APP_URL       = (process.env.APP_URL || 'https://your-app.onrender.com').replace(/\/$/, '');
+const PWD_SALT      = process.env.PWD_SALT || 'bau-fyp-salt-2025';
 
 const ADMIN_ID          = 'A20160170';
 const SESSION_TTL       = 8 * 60 * 60 * 1000;
@@ -17,17 +17,18 @@ const TOKEN_EXPIRY_DAYS = 30;
 const DEFAULT_PWD       = 'fyp2025';
 
 async function sendEmail(to, subject, html) {
-  const res = await fetch('https://api.mailersend.com/v1/email', {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${MAILERSEND_API_KEY}`,
-      'Content-Type': 'application/json',
+      'accept': 'application/json',
+      'api-key': BREVO_API_KEY,
+      'content-type': 'application/json',
     },
     body: JSON.stringify({
-      from: { email: SENDER_EMAIL, name: 'FYP System — BAU' },
+      sender: { name: 'FYP System — BAU', email: BREVO_USER },
       to: [{ email: String(to) }],
       subject,
-      html,
+      htmlContent: html,
     }),
   });
   if (!res.ok) {
