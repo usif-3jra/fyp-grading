@@ -1232,6 +1232,7 @@ const Ex = {
       const res = await gsrAuth('sendExaminerEmails', pid, this.assignments);
       if (!res.success) throw new Error(res.message);
       Toast.show('Invitation emails sent successfully.');
+      await this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
@@ -1251,6 +1252,9 @@ const Ex = {
           <tbody>${examiners.map(e => {
             const st = e.Status || 'Assigned';
             const badge = `<span class="badge ${statusClass[st] || 'bg-secondary'}">${statusLabel[st] || st}</span>`;
+            const sendBtn = st !== 'Submitted'
+              ? `<button class="btn btn-outline-primary btn-sm py-0 px-1 ms-1" onclick="Ex.resendEmail('${escHtml(e.AssignmentID)}')" title="${st === 'Assigned' ? 'Send Email' : 'Resend Email'}"><i class="fas fa-envelope"></i></button>`
+              : '';
             const removeBtn = st === 'Assigned'
               ? `<button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="Ex.removeExaminer('${escHtml(e.AssignmentID)}','${escHtml(pid)}')" title="Remove"><i class="fas fa-trash"></i></button>`
               : '';
@@ -1258,7 +1262,7 @@ const Ex = {
               <td>${escHtml(e.ExaminerName || '—')}</td>
               <td>${escHtml(e.ExaminerEmail)}</td>
               <td>${escHtml(e.ExaminerType)}</td>
-              <td>${badge}</td>
+              <td>${badge}${sendBtn}</td>
               <td class="text-center">${removeBtn}</td>
             </tr>`;
           }).join('')}
@@ -1276,6 +1280,18 @@ const Ex = {
       Toast.show('Examiner removed.');
       await this.refreshStatus();
     } catch (e) { Toast.show('Error: ' + e.message, 'error'); }
+    finally { Spinner.hide(); }
+  },
+
+  async resendEmail(assignmentId) {
+    if (!confirm('Send invitation email to this examiner?')) return;
+    Spinner.show();
+    try {
+      const res = await gsrAuth('resendExaminerEmail', assignmentId);
+      if (!res.success) throw new Error(res.message);
+      Toast.show('Invitation email sent.');
+      await this.refreshStatus();
+    } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
 

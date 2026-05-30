@@ -779,6 +779,33 @@ module.exports = async function handler(req, res) {
         return ok(data.map(mapExaminer));
       }
 
+      case 'resendExaminerEmail': {
+        const [sessionToken, assignmentId] = args;
+        if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
+        const rows = await sql`SELECT e.*, p.title FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
+        const e = rows[0];
+        if (!e) return ok({ success: false, message: 'Examiner not found.' });
+        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
+        const link = `${APP_URL}/examiner.html?token=${e.token}`;
+        const reportBlock = e.report_link ? `<p><strong>Project Report:</strong><br/><a href="${e.report_link}">${e.report_link}</a></p>` : '';
+        await sendEmail(
+          e.examiner_email,
+          `FYP Grading Assignment – ${e.title || assignmentId}`,
+          `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
+            <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
+            <p>Dear ${e.examiner_name || 'Examiner'},</p>
+            <p>You have been assigned to evaluate: <strong>${e.title || assignmentId}</strong> (Role: ${e.examiner_type})</p>
+            ${reportBlock}
+            <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
+            <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
+            <p style="color:#666;font-size:12px;">This link is unique to you. Do not share it.</p>
+            <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
+          </div>`
+        );
+        await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${assignmentId} AND status = 'Assigned'`;
+        return ok({ success: true });
+      }
+
       // ─── Examiner Portal ─────────────────────────────────────────────
 
       case 'getExaminerByToken': {
