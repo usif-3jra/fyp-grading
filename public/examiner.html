@@ -409,6 +409,11 @@ function renderPortal(data) {
     document.querySelectorAll('#pane-presentation .grade-inp').forEach(inp => { inp.disabled = true; });
   }
 
+  // Option B: if examiner already submitted report and presentation is now open, go straight to it
+  if (data.reportSubmitted && !data.presentationLocked) {
+    presTab.click();
+  }
+
   // Pre-fill saved draft grades
   if (data.draftGrades && data.draftGrades.length) {
     data.draftGrades.forEach(g => {

@@ -878,6 +878,7 @@ module.exports = async function handler(req, res) {
         return ok({
           valid: true,
           presentationLocked,
+          reportSubmitted: assignment.status === 'ReportSubmitted',
           draftGrades,
           assignment: { id: assignment.assignment_id, name: assignment.examiner_name, email: assignment.examiner_email, type: assignment.examiner_type, reportLink: assignment.report_link || '' },
           project:    { id: project ? project.project_id : '', title: project ? project.title : '', type: projectType },
@@ -916,13 +917,14 @@ module.exports = async function handler(req, res) {
         if (presentationLocked && (gradesPayload.grades || []).some(g => g.category === 'Presentation'))
           return ok({ success: false, message: 'Presentation grading is not yet open.' });
 
-        const grades   = gradesPayload.grades || [];
+        const grades     = gradesPayload.grades || [];
         const isIndustry = assignment.examiner_type === 'Industry';
         const hasReport  = grades.some(g => g.category === 'Report');
         const hasPres    = grades.some(g => g.category === 'Presentation');
 
-        // Partial: non-Industry examiner submitting only report while presentation is locked
-        const isPartial  = !isIndustry && presentationLocked && hasReport && !hasPres;
+        // Partial: non-Industry examiner whose submission has no presentation grades
+        // (date-independent — only complete when both Report + Presentation are present)
+        const isPartial  = !isIndustry && hasReport && !hasPres;
 
         const ts = new Date().toISOString();
         // Delete existing grades first to avoid duplicates on re-submission
@@ -936,7 +938,7 @@ module.exports = async function handler(req, res) {
           const safeDraft = grades.map(g => ({ category: g.category, criterion: g.criterion, studentId: g.studentId || '', score: g.score }));
           await sql`UPDATE examiners SET status = 'ReportSubmitted', draft_grades = ${JSON.stringify(safeDraft)}::jsonb WHERE assignment_id = ${assignment.assignment_id}`;
           try {
-            const endDateStr = cfg.semester_end_date ? `after ${cfg.semester_end_date}` : 'after the semester end date set by the administrator';
+            const endDateStr = cfg.semester_end_date ? cfg.semester_end_date : 'the semester end date';
             await sendEmail(
               assignment.examiner_email,
               'Report Grades Received — Presentation Grading Pending',
@@ -944,7 +946,7 @@ module.exports = async function handler(req, res) {
                 <h2 style="color:#1e3a5f;">Report Grades Received</h2>
                 <p>Dear ${assignment.examiner_name || 'Examiner'},</p>
                 <p>Your <strong>Report</strong> grades have been successfully recorded.</p>
-                <p>Presentation grading will be available <strong>${endDateStr}</strong>. Please use your original invitation link to return and submit your Presentation grades at that time.</p>
+                <p>Please use your original invitation link to return after <strong>${endDateStr}</strong> to submit your <strong>Presentation</strong> grades.</p>
                 <p style="margin-top:24px;"><a href="${APP_URL}/examiner.html?token=${assignment.token}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Return to Grading Portal</a></p>
                 <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
               </div>`

@@ -1274,9 +1274,8 @@ const Ex = {
     try {
       const examiners = await gsrAuth('getExaminersForProject', pid);
       if (!examiners.length) { c.innerHTML = '<p class="text-muted small">No examiners assigned yet.</p>'; return; }
-      const statusLabel = { Assigned: 'Not Emailed', Invited: 'Email Sent', ReportSubmitted: 'Report Graded', Submitted: 'Submitted' };
-      const statusClass = { Assigned: 'bg-warning text-dark', Invited: 'bg-info text-white', ReportSubmitted: 'bg-primary text-white', Submitted: 'bg-success text-white' };
-      const gradeCell = v => v
+      const emailSent  = st => st !== 'Assigned';
+      const gradeCell  = v => v
         ? `<span class="badge bg-success"><i class="fas fa-check"></i></span>`
         : `<span class="text-muted small">—</span>`;
       c.innerHTML = `
@@ -1284,9 +1283,12 @@ const Ex = {
           <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Report</th><th>Presentation</th><th>Email Status</th><th></th></tr></thead>
           <tbody>${examiners.map(e => {
             const st = e.Status || 'Assigned';
-            const badge = `<span class="badge ${statusClass[st] || 'bg-secondary'}">${statusLabel[st] || st}</span>`;
-            const sendBtn = st !== 'Submitted'
-              ? `<button class="btn btn-outline-primary btn-sm py-0 px-1 ms-1" onclick="Ex.resendEmail('${escHtml(e.AssignmentID)}')" title="${st === 'Assigned' ? 'Send Email' : 'Resend Email'}"><i class="fas fa-envelope"></i></button>`
+            const sent = emailSent(st);
+            const badge = sent
+              ? `<span class="badge bg-info text-white">Email Sent</span>`
+              : `<span class="badge bg-warning text-dark">Not Emailed</span>`;
+            const sendBtn = !sent
+              ? `<button class="btn btn-outline-primary btn-sm py-0 px-1 ms-1" onclick="Ex.resendEmail('${escHtml(e.AssignmentID)}')" title="Send Email"><i class="fas fa-envelope"></i></button>`
               : '';
             const removeBtn = st === 'Assigned'
               ? `<button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="Ex.removeExaminer('${escHtml(e.AssignmentID)}','${escHtml(pid)}')" title="Remove"><i class="fas fa-trash"></i></button>`
