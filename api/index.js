@@ -708,16 +708,23 @@ module.exports = async function handler(req, res) {
         const existing  = await sql`SELECT * FROM examiners WHERE project_id = ${projectId}`;
         const newEmails = (examiners || []).map(e => String(e.email).toLowerCase());
 
+        // Only remove examiners that were never emailed; keep Invited/Submitted ones
         for (const old of existing) {
-          if (!newEmails.includes(old.examiner_email.toLowerCase())) {
+          if (!newEmails.includes(old.examiner_email.toLowerCase()) && old.status === 'Assigned') {
             await sql`DELETE FROM examiner_grades WHERE assignment_id = ${old.assignment_id}`;
             await sql`DELETE FROM examiners WHERE assignment_id = ${old.assignment_id}`;
           }
         }
 
         const assignments = [];
+        const warnings    = [];
         for (const ex of (examiners || [])) {
           const found = existing.find(e => e.examiner_email.toLowerCase() === String(ex.email).toLowerCase());
+          if (found && found.status !== 'Assigned') {
+            // Already emailed — preserve as-is, warn the caller
+            warnings.push({ name: found.examiner_name || found.examiner_email, email: found.examiner_email });
+            continue;
+          }
           let token, aId;
           if (found) {
             token = found.token; aId = found.assignment_id;
@@ -728,7 +735,7 @@ module.exports = async function handler(req, res) {
           }
           assignments.push({ assignmentId: aId, name: ex.name || '', email: ex.email, type: ex.type, token, reportLink: link });
         }
-        return ok({ success: true, assignments });
+        return ok({ success: true, assignments, warnings });
       }
 
       case 'sendExaminerEmails': {

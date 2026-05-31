@@ -1217,8 +1217,19 @@ const Ex = {
       const res = await gsrAuth('assignExaminers', pid, examiners, reportLink);
       if (!res.success) throw new Error(res.message);
       this.assignments = res.assignments;
-      Toast.show('Examiners assigned. Now send invitation emails.');
-      document.getElementById('btnSendEmail').classList.remove('d-none');
+
+      if (res.warnings && res.warnings.length) {
+        const names = res.warnings.map(w => `${w.name} <${w.email}>`).join(', ');
+        Toast.show(`Already assigned & emailed — kept in list: ${names}`, 'warning');
+      }
+
+      if (this.assignments.length) {
+        Toast.show('Examiners assigned. Now send invitation emails.');
+        document.getElementById('btnSendEmail').classList.remove('d-none');
+      } else {
+        Toast.show('No new examiners to email — all were already invited.');
+        document.getElementById('btnSendEmail').classList.add('d-none');
+      }
       this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
