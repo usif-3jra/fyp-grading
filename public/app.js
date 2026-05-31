@@ -935,7 +935,7 @@ const TW = {
     }
   },
 
-  loadGradingUI() {
+  async loadGradingUI() {
     const pid  = document.getElementById('tw-project-sel').value;
     const area = document.getElementById('twGradingArea');
     if (!pid) { area.classList.add('d-none'); return; }
@@ -945,6 +945,56 @@ const TW = {
 
     this._renderIndividualMatrix(project.studentList || []);
     area.classList.remove('d-none');
+    await this.loadSavedGrades(pid);
+  },
+
+  async loadSavedGrades(pid) {
+    try {
+      const { myGrades, otherGrades } = await gsrAuth('getTeamworkGrades', pid);
+
+      // Pre-fill current supervisor's saved grades
+      myGrades.forEach(g => {
+        const inp = document.querySelector(`.ind-grade[data-criterion="${CSS.escape(g.criterion)}"][data-student="${CSS.escape(g.studentId)}"]`);
+        if (inp) inp.value = g.grade;
+      });
+
+      // Render other supervisors' grades as a read-only panel
+      const panel = document.getElementById('otherGradesPanel');
+      if (!panel) return;
+      if (!otherGrades.length) { panel.innerHTML = ''; return; }
+
+      // Group by supervisor name
+      const bySup = {};
+      otherGrades.forEach(g => {
+        if (!bySup[g.supervisorName]) bySup[g.supervisorName] = [];
+        bySup[g.supervisorName].push(g);
+      });
+
+      const tables = Object.entries(bySup).map(([supName, grades]) => {
+        const students = [...new Set(grades.map(g => g.studentId))];
+        const criteria = [...new Set(grades.map(g => g.criterion))];
+        const headerCells = students.map(sid => `<th>${escHtml(sid)}</th>`).join('');
+        const rows = criteria.map(cr => {
+          const cells = students.map(sid => {
+            const found = grades.find(g => g.criterion === cr && g.studentId === sid);
+            return `<td>${found !== undefined ? found.grade : '—'}</td>`;
+          }).join('');
+          return `<tr><td>${escHtml(cr)}</td>${cells}</tr>`;
+        }).join('');
+        return `<div class="mb-2">
+          <p class="mb-1 small fw-semibold text-secondary"><i class="fas fa-user me-1"></i>${escHtml(supName)} — already graded</p>
+          <table class="matrix-table opacity-75">
+            <thead><tr><th>Criterion</th>${headerCells}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+      }).join('');
+
+      panel.innerHTML = `<div class="alert alert-info py-2 px-3 mt-3">
+        <strong><i class="fas fa-info-circle me-1"></i>Other supervisor grades (read-only)</strong>
+        <div class="mt-2">${tables}</div>
+      </div>`;
+    } catch (e) { console.warn('loadSavedGrades', e); }
   },
 
   _twLegend() {

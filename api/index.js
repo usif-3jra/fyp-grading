@@ -562,6 +562,24 @@ module.exports = async function handler(req, res) {
 
       // ─── Teamwork Grading ────────────────────────────────────────────
 
+      case 'getTeamworkGrades': {
+        const [sessionToken, projectId] = args;
+        const session = await verifySession(sessionToken);
+        if (!session) return ok({ myGrades: [], otherGrades: [] });
+        const gradedBy = session.supervisor_id;
+        const rows = await sql`
+          SELECT g.student_id, g.criterion, g.grade, g.graded_by, s.name AS supervisor_name
+          FROM tw_grades g
+          LEFT JOIN supervisors s ON s.supervisor_id = g.graded_by
+          WHERE g.project_id = ${projectId} AND g.grade_type = 'Individual'
+        `;
+        const myGrades    = rows.filter(r => r.graded_by === gradedBy)
+                                .map(r => ({ studentId: r.student_id, criterion: r.criterion, grade: Number(r.grade) }));
+        const otherGrades = rows.filter(r => r.graded_by !== gradedBy)
+                                .map(r => ({ supervisorName: r.supervisor_name || r.graded_by, studentId: r.student_id, criterion: r.criterion, grade: Number(r.grade) }));
+        return ok({ myGrades, otherGrades });
+      }
+
       case 'submitTeamworkGrades': {
         const [sessionToken, projectId, groupGrades, individualGrades] = args;
         const session = await verifySession(sessionToken);
