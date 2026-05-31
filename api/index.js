@@ -1,13 +1,13 @@
 // FYP Management System — Render/Express backend
-// Stack: Neon PostgreSQL + MailerSend HTTP API
+// Stack: Neon PostgreSQL + Mailtrap Email Sending API
 
 const { neon } = require('@neondatabase/serverless');
 const crypto    = require('crypto');
 
-const SENDER_EMAIL       = process.env.SENDER_EMAIL       || '';
-const MAILERSEND_API_KEY = process.env.MAILERSEND_API_KEY || '';
-const APP_URL            = (process.env.APP_URL || 'https://your-app.onrender.com').replace(/\/$/, '');
-const PWD_SALT           = process.env.PWD_SALT || 'bau-fyp-salt-2025';
+const SENDER_EMAIL      = process.env.SENDER_EMAIL      || '';
+const MAILTRAP_API_KEY  = process.env.MAILTRAP_API_KEY  || '';
+const APP_URL           = (process.env.APP_URL || 'https://your-app.onrender.com').replace(/\/$/, '');
+const PWD_SALT          = process.env.PWD_SALT || 'bau-fyp-salt-2025';
 
 const ADMIN_ID          = 'A20160170';
 const SESSION_TTL       = 8 * 60 * 60 * 1000;
@@ -17,10 +17,10 @@ const TOKEN_EXPIRY_DAYS = 30;
 const DEFAULT_PWD       = 'fyp2025';
 
 async function sendEmail(to, subject, html) {
-  const res = await fetch('https://api.mailersend.com/v1/email', {
+  const res = await fetch('https://send.api.mailtrap.io/api/send', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${MAILERSEND_API_KEY}`,
+      'Authorization': `Bearer ${MAILTRAP_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
