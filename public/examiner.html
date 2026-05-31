@@ -250,9 +250,6 @@
     <!-- Submit Bar -->
     <div class="submit-bar mt-2">
       <span class="total-preview">Grades entered: <span id="grade-count">0</span></span>
-      <button class="btn btn-outline-secondary btn-lg" id="btn-save-draft" onclick="saveDraft()">
-        <i class="fas fa-save me-2"></i>Save Progress
-      </button>
       <button class="btn btn-success btn-lg" id="btn-submit" onclick="submitGrades()">
         <i class="fas fa-paper-plane me-2"></i>Submit All Grades
       </button>
@@ -379,21 +376,18 @@ function renderPortal(data) {
   const presTab   = document.getElementById('tab-pres-btn');
 
   if (type === 'Industry') {
+    document.getElementById('notice-industry').classList.remove('d-none');
+    // Hide report tab entirely — industry examiners grade presentation only
+    reportTab.closest('li').classList.add('d-none');
+    presTab.click();
+
     if (data.presentationLocked) {
       document.getElementById('notice-industry').innerHTML =
         '<i class="fas fa-clock me-2"></i><strong>Presentation Grading Not Yet Open:</strong> ' +
         'You are assigned as an Industry examiner (Presentation only). ' +
         'Presentation grading will be available after the semester end date set by the administrator. ' +
         'Please return later or contact the project supervisor.';
-      document.getElementById('notice-industry').classList.remove('d-none');
-      document.getElementById('btn-submit').disabled    = true;
-      document.getElementById('btn-save-draft').disabled = true;
-    } else {
-      document.getElementById('notice-industry').classList.remove('d-none');
-      reportTab.classList.add('disabled');
-      reportTab.setAttribute('aria-disabled', 'true');
-      presTab.classList.add('active');
-      presTab.click();
+      document.getElementById('btn-submit').disabled = true;
     }
   } else if (type === 'Other University') {
     document.getElementById('notice-other-univ').classList.remove('d-none');
@@ -485,10 +479,17 @@ function renderSection(containerId, criteria, category, students) {
 }
 
 function updateGradeCount() {
-  const filled = document.querySelectorAll('.grade-inp');
-  let count = 0;
-  filled.forEach(inp => { if (inp.value !== '') count++; });
-  document.getElementById('grade-count').textContent = count;
+  const type       = _data ? _data.assignment.type : null;
+  const presLocked = _data ? _data.presentationLocked : false;
+  const inputSel   = type === 'Industry'   ? '#pane-presentation .grade-inp'
+                   : presLocked            ? '#pane-report .grade-inp'
+                   :                         '.grade-inp';
+  let filled = 0, total = 0;
+  document.querySelectorAll(inputSel).forEach(inp => {
+    total++;
+    if (inp.value !== '') filled++;
+  });
+  document.getElementById('grade-count').textContent = `${filled}/${total}`;
 }
 
 function saveDraft() {
@@ -528,21 +529,21 @@ function saveDraft() {
 }
 
 function submitGrades() {
-  const type = _data.assignment.type;
-  const grades = [];
+  const type      = _data.assignment.type;
+  const presLocked = _data.presentationLocked;
+  const grades    = [];
   let valid = true;
   let firstInvalid = null;
-
-  const presLocked = _data.presentationLocked;
   clearError();
 
-  document.querySelectorAll('.grade-inp').forEach(inp => {
-    if (type === 'Industry' && inp.dataset.category === 'Report') return;
-    if (presLocked && inp.dataset.category === 'Presentation') return;
+  // Target only the inputs this examiner is required to fill
+  const inputSel = type === 'Industry'   ? '#pane-presentation .grade-inp'
+                 : presLocked            ? '#pane-report .grade-inp'
+                 :                         '.grade-inp';
 
+  document.querySelectorAll(inputSel).forEach(inp => {
     const val = parseFloat(inp.value);
     const max = parseFloat(inp.dataset.max);
-
     if (inp.value === '' || isNaN(val) || val < 0 || val > max) {
       inp.style.borderColor = '#dc2626';
       valid = false;
@@ -589,6 +590,16 @@ function _doSubmit(grades) {
         showError('Submission error: ' + res.message);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit All Grades';
+        return;
+      }
+      if (res.partial) {
+        // Report-only submission — presentation still locked
+        btn.innerHTML = '<i class="fas fa-check me-2"></i>Report Grades Saved';
+        clearError();
+        const banner = document.createElement('div');
+        banner.className = 'alert alert-success mt-3';
+        banner.innerHTML = '<i class="fas fa-check-circle me-2"></i><strong>Report grades recorded.</strong> A confirmation email has been sent. Please return using this same link after the semester end date to submit your Presentation grades.';
+        document.getElementById('portal-error').insertAdjacentElement('afterend', banner);
         return;
       }
       show('state-done');

@@ -1274,11 +1274,14 @@ const Ex = {
     try {
       const examiners = await gsrAuth('getExaminersForProject', pid);
       if (!examiners.length) { c.innerHTML = '<p class="text-muted small">No examiners assigned yet.</p>'; return; }
-      const statusLabel = { Assigned: 'Not Emailed', Invited: 'Email Sent', Submitted: 'Submitted' };
-      const statusClass = { Assigned: 'bg-warning text-dark', Invited: 'bg-info text-white', Submitted: 'bg-success text-white' };
+      const statusLabel = { Assigned: 'Not Emailed', Invited: 'Email Sent', ReportSubmitted: 'Report Graded', Submitted: 'Submitted' };
+      const statusClass = { Assigned: 'bg-warning text-dark', Invited: 'bg-info text-white', ReportSubmitted: 'bg-primary text-white', Submitted: 'bg-success text-white' };
+      const gradeCell = v => v
+        ? `<span class="badge bg-success"><i class="fas fa-check"></i></span>`
+        : `<span class="text-muted small">—</span>`;
       c.innerHTML = `
         <table class="table table-sm table-bordered mb-0">
-          <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Email Status</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Report</th><th>Presentation</th><th>Email Status</th><th></th></tr></thead>
           <tbody>${examiners.map(e => {
             const st = e.Status || 'Assigned';
             const badge = `<span class="badge ${statusClass[st] || 'bg-secondary'}">${statusLabel[st] || st}</span>`;
@@ -1292,6 +1295,8 @@ const Ex = {
               <td>${escHtml(e.ExaminerName || '—')}</td>
               <td>${escHtml(e.ExaminerEmail)}</td>
               <td>${escHtml(e.ExaminerType)}</td>
+              <td class="text-center">${gradeCell(e.HasReport)}</td>
+              <td class="text-center">${gradeCell(e.HasPresentation)}</td>
               <td>${badge}${sendBtn}</td>
               <td class="text-center">${removeBtn}</td>
             </tr>`;

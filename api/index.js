@@ -801,8 +801,14 @@ module.exports = async function handler(req, res) {
       case 'getExaminersForProject': {
         const [sessionToken, projectId] = args;
         if (!await verifySession(sessionToken)) return ok([]);
-        const data = await sql`SELECT * FROM examiners WHERE project_id = ${projectId}`;
-        return ok(data.map(mapExaminer));
+        const data = await sql`
+          SELECT e.*,
+            EXISTS(SELECT 1 FROM examiner_grades g WHERE g.assignment_id = e.assignment_id AND g.category = 'Report')       AS has_report,
+            EXISTS(SELECT 1 FROM examiner_grades g WHERE g.assignment_id = e.assignment_id AND g.category = 'Presentation') AS has_presentation
+          FROM examiners e
+          WHERE e.project_id = ${projectId}
+        `;
+        return ok(data.map(r => ({ ...mapExaminer(r), HasReport: r.has_report, HasPresentation: r.has_presentation })));
       }
 
       case 'resendExaminerEmail': {
@@ -910,19 +916,47 @@ module.exports = async function handler(req, res) {
         if (presentationLocked && (gradesPayload.grades || []).some(g => g.category === 'Presentation'))
           return ok({ success: false, message: 'Presentation grading is not yet open.' });
 
-        const ts = new Date().toISOString();
-        const inserts = (gradesPayload.grades || []).map(g => ({
-          grade_id: uid('EG'), assignment_id: assignment.assignment_id, project_id: assignment.project_id,
-          examiner_email: assignment.examiner_email, category: g.category, criterion: g.criterion,
-          student_id: g.studentId || '', score: g.score, submitted_at: ts,
-        }));
-        for (const g of inserts) {
-          await sql`INSERT INTO examiner_grades (grade_id, assignment_id, project_id, examiner_email, category, criterion, student_id, score, submitted_at) VALUES (${g.grade_id}, ${g.assignment_id}, ${g.project_id}, ${g.examiner_email}, ${g.category}, ${g.criterion}, ${g.student_id}, ${g.score}, ${g.submitted_at})`;
-        }
-        await sql`UPDATE examiners SET status = 'Submitted' WHERE assignment_id = ${assignment.assignment_id}`;
+        const grades   = gradesPayload.grades || [];
+        const isIndustry = assignment.examiner_type === 'Industry';
+        const hasReport  = grades.some(g => g.category === 'Report');
+        const hasPres    = grades.some(g => g.category === 'Presentation');
 
+        // Partial: non-Industry examiner submitting only report while presentation is locked
+        const isPartial  = !isIndustry && presentationLocked && hasReport && !hasPres;
+
+        const ts = new Date().toISOString();
+        // Delete existing grades first to avoid duplicates on re-submission
+        await sql`DELETE FROM examiner_grades WHERE assignment_id = ${assignment.assignment_id}`;
+        for (const g of grades) {
+          await sql`INSERT INTO examiner_grades (grade_id, assignment_id, project_id, examiner_email, category, criterion, student_id, score, submitted_at) VALUES (${uid('EG')}, ${assignment.assignment_id}, ${assignment.project_id}, ${assignment.examiner_email}, ${g.category}, ${g.criterion}, ${g.studentId || ''}, ${g.score}, ${ts})`;
+        }
+
+        if (isPartial) {
+          // Save submitted grades as draft so they pre-fill on next visit
+          const safeDraft = grades.map(g => ({ category: g.category, criterion: g.criterion, studentId: g.studentId || '', score: g.score }));
+          await sql`UPDATE examiners SET status = 'ReportSubmitted', draft_grades = ${JSON.stringify(safeDraft)}::jsonb WHERE assignment_id = ${assignment.assignment_id}`;
+          try {
+            const endDateStr = cfg.semester_end_date ? `after ${cfg.semester_end_date}` : 'after the semester end date set by the administrator';
+            await sendEmail(
+              assignment.examiner_email,
+              'Report Grades Received — Presentation Grading Pending',
+              `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;">
+                <h2 style="color:#1e3a5f;">Report Grades Received</h2>
+                <p>Dear ${assignment.examiner_name || 'Examiner'},</p>
+                <p>Your <strong>Report</strong> grades have been successfully recorded.</p>
+                <p>Presentation grading will be available <strong>${endDateStr}</strong>. Please use your original invitation link to return and submit your Presentation grades at that time.</p>
+                <p style="margin-top:24px;"><a href="${APP_URL}/examiner.html?token=${assignment.token}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Return to Grading Portal</a></p>
+                <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
+              </div>`
+            );
+          } catch {}
+          return ok({ success: true, partial: true });
+        }
+
+        // Complete submission
+        await sql`UPDATE examiners SET status = 'Submitted' WHERE assignment_id = ${assignment.assignment_id}`;
         try {
-          const rows = (gradesPayload.grades || []).map(g =>
+          const rows = grades.map(g =>
             `<tr><td style="padding:6px 10px;border:1px solid #ddd;">${g.category}</td><td style="padding:6px 10px;border:1px solid #ddd;">${g.criterion}</td><td style="padding:6px 10px;border:1px solid #ddd;">${g.studentId||'—'}</td><td style="padding:6px 10px;border:1px solid #ddd;text-align:center;">${g.score}</td></tr>`
           ).join('');
           await sendEmail(
@@ -938,7 +972,6 @@ module.exports = async function handler(req, res) {
             </div>`
           );
         } catch {}
-
         return ok({ success: true });
       }
 
