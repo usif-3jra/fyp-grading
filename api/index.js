@@ -565,19 +565,22 @@ module.exports = async function handler(req, res) {
       case 'getTeamworkGrades': {
         const [sessionToken, projectId] = args;
         const session = await verifySession(sessionToken);
-        if (!session) return ok({ myGrades: [], otherGrades: [] });
-        const gradedBy = session.supervisor_id;
+        if (!session) return ok([]);
         const rows = await sql`
-          SELECT g.student_id, g.criterion, g.grade, g.graded_by, s.name AS supervisor_name
+          SELECT DISTINCT ON (g.student_id, g.criterion)
+            g.student_id, g.criterion, g.grade, g.graded_by, s.name AS supervisor_name
           FROM tw_grades g
           LEFT JOIN supervisors s ON s.supervisor_id = g.graded_by
           WHERE g.project_id = ${projectId} AND g.grade_type = 'Individual'
+          ORDER BY g.student_id, g.criterion, g.timestamp DESC
         `;
-        const myGrades    = rows.filter(r => r.graded_by === gradedBy)
-                                .map(r => ({ studentId: r.student_id, criterion: r.criterion, grade: Number(r.grade) }));
-        const otherGrades = rows.filter(r => r.graded_by !== gradedBy)
-                                .map(r => ({ supervisorName: r.supervisor_name || r.graded_by, studentId: r.student_id, criterion: r.criterion, grade: Number(r.grade) }));
-        return ok({ myGrades, otherGrades });
+        return ok(rows.map(r => ({
+          studentId:  r.student_id,
+          criterion:  r.criterion,
+          grade:      Number(r.grade),
+          gradedBy:   r.supervisor_name || r.graded_by,
+          isMe:       r.graded_by === session.supervisor_id,
+        })));
       }
 
       case 'submitTeamworkGrades': {
@@ -586,14 +589,12 @@ module.exports = async function handler(req, res) {
         if (!session) return ok({ success: false, message: 'Session expired.' });
         const gradedBy = session.supervisor_id;
 
-        await sql`DELETE FROM tw_grades WHERE project_id = ${projectId} AND graded_by = ${gradedBy}`;
+        // Delete all grades for this project (shared grade — last write wins)
+        await sql`DELETE FROM tw_grades WHERE project_id = ${projectId}`;
 
         const ts = new Date().toISOString();
-        const inserts = [
-          ...(individualGrades || []).map(g => ({ grade_id: uid('TG'), project_id: projectId, student_id: g.studentId, criterion: g.criterion, grade: g.grade, graded_by: gradedBy, grade_type: 'Individual', timestamp: ts })),
-        ];
-        for (const g of inserts) {
-          await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${g.grade_id}, ${g.project_id}, ${g.student_id}, ${g.criterion}, ${g.grade}, ${g.graded_by}, ${g.grade_type}, ${g.timestamp})`;
+        for (const g of (individualGrades || [])) {
+          await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${projectId}, ${g.studentId}, ${g.criterion}, ${g.grade}, ${gradedBy}, 'Individual', ${ts})`;
         }
         return ok({ success: true });
       }

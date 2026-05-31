@@ -950,50 +950,17 @@ const TW = {
 
   async loadSavedGrades(pid) {
     try {
-      const { myGrades, otherGrades } = await gsrAuth('getTeamworkGrades', pid);
-
-      // Pre-fill current supervisor's saved grades
-      myGrades.forEach(g => {
+      const grades = await gsrAuth('getTeamworkGrades', pid);
+      grades.forEach(g => {
         const inp = document.querySelector(`.ind-grade[data-criterion="${CSS.escape(g.criterion)}"][data-student="${CSS.escape(g.studentId)}"]`);
-        if (inp) inp.value = g.grade;
+        if (!inp) return;
+        inp.value = g.grade;
+        const label = inp.parentElement.querySelector('.graded-by-label');
+        if (label) {
+          label.textContent = g.isMe ? 'You graded' : `By: ${g.gradedBy}`;
+          label.className   = `graded-by-label d-block ${g.isMe ? 'text-success' : 'text-warning'}`;
+        }
       });
-
-      // Render other supervisors' grades as a read-only panel
-      const panel = document.getElementById('otherGradesPanel');
-      if (!panel) return;
-      if (!otherGrades.length) { panel.innerHTML = ''; return; }
-
-      // Group by supervisor name
-      const bySup = {};
-      otherGrades.forEach(g => {
-        if (!bySup[g.supervisorName]) bySup[g.supervisorName] = [];
-        bySup[g.supervisorName].push(g);
-      });
-
-      const tables = Object.entries(bySup).map(([supName, grades]) => {
-        const students = [...new Set(grades.map(g => g.studentId))];
-        const criteria = [...new Set(grades.map(g => g.criterion))];
-        const headerCells = students.map(sid => `<th>${escHtml(sid)}</th>`).join('');
-        const rows = criteria.map(cr => {
-          const cells = students.map(sid => {
-            const found = grades.find(g => g.criterion === cr && g.studentId === sid);
-            return `<td>${found !== undefined ? found.grade : '—'}</td>`;
-          }).join('');
-          return `<tr><td>${escHtml(cr)}</td>${cells}</tr>`;
-        }).join('');
-        return `<div class="mb-2">
-          <p class="mb-1 small fw-semibold text-secondary"><i class="fas fa-user me-1"></i>${escHtml(supName)} — already graded</p>
-          <table class="matrix-table opacity-75">
-            <thead><tr><th>Criterion</th>${headerCells}</tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>`;
-      }).join('');
-
-      panel.innerHTML = `<div class="alert alert-info py-2 px-3 mt-3">
-        <strong><i class="fas fa-info-circle me-1"></i>Other supervisor grades (read-only)</strong>
-        <div class="mt-2">${tables}</div>
-      </div>`;
     } catch (e) { console.warn('loadSavedGrades', e); }
   },
 
@@ -1018,7 +985,8 @@ const TW = {
       const cells = students.map(s =>
         `<td><input type="number" class="ind-grade"
               data-criterion="${r.criterion}" data-student="${s.StudentID}"
-              min="0" max="${r.maxGrade}" step="0.5" placeholder="0–${r.maxGrade}"/></td>`
+              min="0" max="${r.maxGrade}" step="0.5" placeholder="0–${r.maxGrade}"/>
+          <small class="graded-by-label d-block text-muted"></small></td>`
       ).join('');
       return `<tr><td>${r.criterion} <small class="text-muted">(Max: ${r.maxGrade})</small></td>${cells}</tr>`;
     }).join('');
@@ -1056,6 +1024,7 @@ const TW = {
       const res = await gsrAuth('submitTeamworkGrades', pid, [], indGrades);
       if (!res.success) throw new Error(res.message);
       Toast.show('Teamwork grades submitted successfully.');
+      await this.loadSavedGrades(pid);
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
