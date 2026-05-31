@@ -1482,7 +1482,7 @@ const Res = {
       const res = await gsrAuth('getFinalResults');
       if (!res.success) {
         if (res.incomplete) {
-          this._showIncomplete(res);
+          this._showIncomplete(res.incompleteByType || {});
         } else {
           Toast.show(res.message || 'Failed to load results.', 'error');
         }
@@ -1492,7 +1492,15 @@ const Res = {
       this.abetByType  = res.abetByType  || {};
       this.statsByType = res.statsByType || {};
       this.applyFilter();
-      Toast.show(`Results loaded — ${res.results.length} student(s).`);
+      // Show per-type incomplete warning alongside results when only some types are ready
+      if (res.incompleteByType && Object.keys(res.incompleteByType).length) {
+        this._showIncomplete(res.incompleteByType);
+      } else {
+        const warn = document.getElementById('res-incomplete-warning');
+        if (warn) { warn.innerHTML = ''; warn.classList.add('d-none'); }
+      }
+      const done = (res.completeTypes || []).join(' & ') || 'results';
+      Toast.show(`Results loaded — ${res.results.length} student(s) (${done} complete).`);
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
@@ -1504,31 +1512,33 @@ const Res = {
     this._renderSummary(this.abetByType, this.statsByType);
   },
 
-  _showIncomplete(res) {
-    const warn    = document.getElementById('res-incomplete-warning');
-    const tbody   = document.getElementById('tbResults');
-    const summary = document.getElementById('resultsSummary');
-    if (summary) { summary.innerHTML = ''; summary.classList.add('d-none'); }
+  _showIncomplete(incompleteByType) {
+    const warn  = document.getElementById('res-incomplete-warning');
+    const tbody = document.getElementById('tbResults');
 
-    const prog = escHtml(res.program || 'your program');
-    const list = (res.incompleteProjects || []).map(p =>
-      `<li><strong>${escHtml(p.title)}</strong> — missing: ${escHtml(p.missing.join(', '))}</li>`
-    ).join('');
+    const sections = Object.entries(incompleteByType).map(([type, projs]) => {
+      const items = projs.map(p => {
+        const bullets = p.missing.map(m => `<li>${escHtml(m)}</li>`).join('');
+        return `<li class="mb-1"><strong>${escHtml(p.title)}</strong><ul class="mb-0">${bullets}</ul></li>`;
+      }).join('');
+      return `<p class="mb-1 fw-semibold">${escHtml(type)} — incomplete:</p><ul class="mb-2 small">${items}</ul>`;
+    }).join('');
 
     if (warn) {
       warn.innerHTML = `
         <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
           <i class="fas fa-exclamation-triangle fa-lg mt-1 flex-shrink-0"></i>
           <div>
-            <strong>Results Not Available</strong>
-            <p class="mb-1 mt-1 small">All projects in <em>${prog}</em> must be fully graded before results can be shown.</p>
-            <p class="mb-1 small fw-medium">Incomplete projects:</p>
-            <ul class="mb-0 small">${list}</ul>
+            <strong>Some results not yet available</strong>
+            <p class="mb-2 mt-1 small">The following project types have incomplete grading and are excluded from results:</p>
+            ${sections}
           </div>
         </div>`;
       warn.classList.remove('d-none');
     }
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Grading incomplete — see warning above.</td></tr>';
+    if (!this.allResults || !this.allResults.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Grading incomplete — see warning above.</td></tr>';
+    }
   },
 
   _render(data) {

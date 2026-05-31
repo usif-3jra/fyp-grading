@@ -250,6 +250,9 @@
     <!-- Submit Bar -->
     <div class="submit-bar mt-2">
       <span class="total-preview">Grades entered: <span id="grade-count">0</span></span>
+      <button class="btn btn-outline-secondary btn-lg" id="btn-save-draft" onclick="saveDraft()">
+        <i class="fas fa-save me-2"></i>Save Progress
+      </button>
       <button class="btn btn-success btn-lg" id="btn-submit" onclick="submitGrades()">
         <i class="fas fa-paper-plane me-2"></i>Submit All Grades
       </button>
@@ -424,6 +427,17 @@ function renderPortal(data) {
       const inp = document.querySelector(`.grade-inp${sel}`);
       if (inp && g.score !== undefined) inp.value = g.score;
     });
+  }
+
+  // Save button: visible on Report tab only, hidden on Presentation tab and for Industry
+  const saveBtn = document.getElementById('btn-save-draft');
+  if (type === 'Industry') {
+    saveBtn.classList.add('d-none');
+  } else {
+    document.getElementById('tab-pres-btn').addEventListener('shown.bs.tab', () => saveBtn.classList.add('d-none'));
+    document.getElementById('tab-report-btn').addEventListener('shown.bs.tab', () => saveBtn.classList.remove('d-none'));
+    // If landing on presentation tab on load (reportSubmitted + unlocked), hide immediately
+    if (data.reportSubmitted && !data.presentationLocked) saveBtn.classList.add('d-none');
   }
 
   document.addEventListener('input', updateGradeCount);

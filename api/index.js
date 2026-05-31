@@ -937,43 +937,11 @@ module.exports = async function handler(req, res) {
           // Save submitted grades as draft so they pre-fill on next visit
           const safeDraft = grades.map(g => ({ category: g.category, criterion: g.criterion, studentId: g.studentId || '', score: g.score }));
           await sql`UPDATE examiners SET status = 'ReportSubmitted', draft_grades = ${JSON.stringify(safeDraft)}::jsonb WHERE assignment_id = ${assignment.assignment_id}`;
-          try {
-            const endDateStr = cfg.semester_end_date ? cfg.semester_end_date : 'the semester end date';
-            await sendEmail(
-              assignment.examiner_email,
-              'Report Grades Received — Presentation Grading Pending',
-              `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;">
-                <h2 style="color:#1e3a5f;">Report Grades Received</h2>
-                <p>Dear ${assignment.examiner_name || 'Examiner'},</p>
-                <p>Your <strong>Report</strong> grades have been successfully recorded.</p>
-                <p>Please use your original invitation link to return after <strong>${endDateStr}</strong> to submit your <strong>Presentation</strong> grades.</p>
-                <p style="margin-top:24px;"><a href="${APP_URL}/examiner.html?token=${assignment.token}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Return to Grading Portal</a></p>
-                <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
-              </div>`
-            );
-          } catch {}
           return ok({ success: true, partial: true });
         }
 
         // Complete submission
         await sql`UPDATE examiners SET status = 'Submitted' WHERE assignment_id = ${assignment.assignment_id}`;
-        try {
-          const rows = grades.map(g =>
-            `<tr><td style="padding:6px 10px;border:1px solid #ddd;">${g.category}</td><td style="padding:6px 10px;border:1px solid #ddd;">${g.criterion}</td><td style="padding:6px 10px;border:1px solid #ddd;">${g.studentId||'—'}</td><td style="padding:6px 10px;border:1px solid #ddd;text-align:center;">${g.score}</td></tr>`
-          ).join('');
-          await sendEmail(
-            assignment.examiner_email,
-            'Grade Submission Receipt — FYP System',
-            `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;">
-              <h2 style="color:#1e3a5f;">Grade Submission Confirmed</h2>
-              <p>Dear ${assignment.examiner_name || 'Examiner'}, your grades have been successfully recorded.</p>
-              <table style="border-collapse:collapse;width:100%;margin-top:16px;">
-                <thead><tr style="background:#1e3a5f;color:#fff;"><th style="padding:8px 10px;">Category</th><th style="padding:8px 10px;">Criterion</th><th style="padding:8px 10px;">Student</th><th style="padding:8px 10px;">Score</th></tr></thead>
-                <tbody>${rows}</tbody>
-              </table>
-            </div>`
-          );
-        } catch {}
         return ok({ success: true });
       }
 
@@ -984,7 +952,7 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
 
-        const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg] = await Promise.all([
+        const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg, allExaminers] = await Promise.all([
           sql`SELECT * FROM projects`,
           sql`SELECT * FROM students`,
           sql`SELECT * FROM tw_grades`,
@@ -993,6 +961,7 @@ module.exports = async function handler(req, res) {
           sql`SELECT * FROM supervisors`,
           sql`SELECT * FROM examiner_config ORDER BY id`,
           sql`SELECT * FROM peer_config ORDER BY question_no`,
+          sql`SELECT * FROM examiners`,
         ]);
 
         const cfg       = await getTWConfig();
@@ -1005,19 +974,53 @@ module.exports = async function handler(req, res) {
         const projectIds = new Set(projects.map(p => p.project_id));
         const students   = allStudents.filter(s => projectIds.has(s.project_id));
 
-        const incompleteProjects = [];
+        // Per-project completeness — grouped by FYP type
+        const incompleteByType = { FYP1: [], FYP2: [] };
         projects.forEach(proj => {
-          const projStudents = allStudents.filter(s => s.project_id === proj.project_id);
-          const hasTW   = twGrades.some(g => g.project_id === proj.project_id);
-          const hasRep  = exGrades.some(g => g.project_id === proj.project_id && g.category === 'Report');
-          const hasPres = exGrades.some(g => g.project_id === proj.project_id && g.category === 'Presentation');
-          const hasPeer = peerEvals.some(e => projStudents.some(s => s.student_id === e.evaluator_id));
+          const pid      = proj.project_id;
+          const projType = String(proj.type || 'FYP1');
+          const key      = projType === 'FYP2' ? 'FYP2' : 'FYP1';
+          const projStudents = allStudents.filter(s => s.project_id === pid);
           const missing = [];
-          if (!hasTW) missing.push('Teamwork'); if (!hasRep) missing.push('Report');
-          if (!hasPres) missing.push('Presentation'); if (!hasPeer) missing.push('Peer Evaluation');
-          if (missing.length) incompleteProjects.push({ title: String(proj.title || proj.project_id), missing });
+
+          // a. All students submitted peer evaluations
+          const peerSubmitters = new Set(peerEvals.filter(e => e.project_id === pid).map(e => e.evaluator_id));
+          projStudents.forEach(s => {
+            if (!peerSubmitters.has(s.student_id))
+              missing.push(`Peer eval not submitted by ${s.student_name}`);
+          });
+
+          // b. Supervisor submitted teamwork grades
+          if (!twGrades.some(g => g.project_id === pid))
+            missing.push('Teamwork grades not submitted by supervisor');
+
+          // c/d/e. Per examiner — required categories depend on examiner type
+          allExaminers.filter(e => e.project_id === pid).forEach(examiner => {
+            const eg      = exGrades.filter(g => g.assignment_id === examiner.assignment_id);
+            const hasRep  = eg.some(g => g.category === 'Report');
+            const hasPres = eg.some(g => g.category === 'Presentation');
+            const name    = examiner.examiner_name || examiner.examiner_email;
+            const eType   = examiner.examiner_type;
+            if (eType === 'Industry') {
+              if (!hasPres) missing.push(`${name} (Industry) — Presentation grades missing`);
+            } else {
+              if (!hasRep)  missing.push(`${name} (${eType}) — Report grades missing`);
+              if (!hasPres) missing.push(`${name} (${eType}) — Presentation grades missing`);
+            }
+          });
+
+          if (missing.length) incompleteByType[key].push({ title: String(proj.title || pid), missing });
         });
-        if (incompleteProjects.length) return ok({ success: false, incomplete: true, program: programName, incompleteProjects, message: `${incompleteProjects.length} project(s) are not fully graded.` });
+
+        const completeTypes    = ['FYP1','FYP2'].filter(t => !incompleteByType[t].length);
+        const incompleteOut    = Object.fromEntries(Object.entries(incompleteByType).filter(([,v]) => v.length > 0));
+
+        if (!completeTypes.length)
+          return ok({ success: false, incomplete: true, program: programName, incompleteByType: incompleteOut, message: 'No project type is fully graded yet.' });
+
+        // Compute results only for complete types
+        const completeIds      = new Set(projects.filter(p => completeTypes.includes(String(p.type||'FYP1'))).map(p => p.project_id));
+        const completeStudents = students.filter(s => completeIds.has(s.project_id));
 
         const twW   = parseFloat(cfg.teamwork_weight     || 35) / 100;
         const peerW = parseFloat(cfg.peer_eval_weight    || 20) / 100;
@@ -1025,7 +1028,7 @@ module.exports = async function handler(req, res) {
         const repW  = parseFloat(cfg.report_weight       || 35) / 100;
         const presW = parseFloat(cfg.presentation_weight || 30) / 100;
 
-        const results = students.map(student => {
+        const results = completeStudents.map(student => {
           const project = projects.find(p => p.project_id === student.project_id);
           const pt = project ? String(project.type || '') : '';
 
@@ -1060,6 +1063,7 @@ module.exports = async function handler(req, res) {
 
         const abetByType = {};
         ['FYP1','FYP2'].forEach(pt => {
+          if (!completeTypes.includes(pt)) return;
           const typeProjects = projects.filter(p => p.type === pt);
           if (!typeProjects.length) return;
           const typeIds = new Set(typeProjects.map(p => p.project_id));
@@ -1097,7 +1101,7 @@ module.exports = async function handler(req, res) {
           statsByType[pt] = { count: gr.length, mean: rnd(mean), sd: rnd(sd) };
         });
 
-        return ok({ success: true, results, abetByType, statsByType });
+        return ok({ success: true, results, abetByType, statsByType, incompleteByType: incompleteOut, completeTypes });
       }
 
       case 'updateProject': {
