@@ -947,6 +947,128 @@ module.exports = async function handler(req, res) {
 
       // ─── Final Results ────────────────────────────────────────────────
 
+      case 'getDetailedResults': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session) return ok({ success: false, message: 'Session expired.' });
+
+        const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg] = await Promise.all([
+          sql`SELECT * FROM projects`,
+          sql`SELECT * FROM students`,
+          sql`SELECT * FROM tw_grades`,
+          sql`SELECT * FROM peer_evaluations`,
+          sql`SELECT * FROM examiner_grades`,
+          sql`SELECT * FROM supervisors`,
+          sql`SELECT * FROM examiner_config ORDER BY id`,
+          sql`SELECT * FROM peer_config ORDER BY question_no`,
+        ]);
+        const cfg       = await getTWConfig();
+        const indRubric = await getIndividualRubric();
+
+        const twW   = parseFloat(cfg.teamwork_weight     || 35) / 100;
+        const peerW = parseFloat(cfg.peer_eval_weight    || 20) / 100;
+        const supW  = parseFloat(cfg.supervisor_weight   || 80) / 100;
+        const repW  = parseFloat(cfg.report_weight       || 35) / 100;
+        const presW = parseFloat(cfg.presentation_weight || 30) / 100;
+
+        let projects = await filterProjectsBySession(session, allProjects, allSups);
+
+        const projectDetails = projects.map(proj => {
+          const pid      = proj.project_id;
+          const projType = String(proj.type || 'FYP1');
+          const supIds   = (proj.supervisors || '').split(',').map(s => s.trim()).filter(Boolean);
+          const supNames = supIds.map(id => { const s = allSups.find(s => s.supervisor_id === id); return s ? s.name : id; });
+          const projStudents = allStudents.filter(s => s.project_id === pid);
+          const projExCfg    = exCfg.filter(c => !c.project_type || c.project_type === projType);
+          const repCfg       = projExCfg.filter(c => c.category === 'Report');
+          const presCfg      = projExCfg.filter(c => c.category === 'Presentation');
+
+          const studentsData = projStudents.map(student => {
+            const sid = student.student_id;
+
+            const twDetails = indRubric.map(r => {
+              const g = twGrades.find(g => g.student_id === sid && g.criterion === r.criterion && g.grade_type === 'Individual');
+              return { criterion: r.criterion, grade: g ? parseFloat(g.grade) : 0, maxGrade: Number(r.maxGrade || 25) };
+            });
+            const indMax  = indRubric.reduce((s, r) => s + Number(r.maxGrade || 25), 0) || 100;
+            const indPct  = pct(twDetails.reduce((s, d) => s + d.grade, 0), indMax);
+
+            const peer      = peerEvals.filter(e => e.evaluated_id === sid);
+            const maxPeer   = peerCfg.reduce((s, q) => s + parseFloat(q.max_grade || 10), 0);
+            const peerCount = peerCfg.length || 1;
+            const peerPct   = pct(peer.reduce((s, e) => s + parseFloat(e.grade || 0), 0), maxPeer * (peer.length / peerCount));
+
+            const twScore = (indPct * supW) + (peerPct * peerW);
+
+            const repG      = exGrades.filter(g => g.project_id === pid && g.category === 'Report');
+            const repDetails = repCfg.map(c => {
+              const ms  = repG.filter(g => g.criterion === c.criterion_name && (g.student_id === sid || g.student_id === 'GROUP'));
+              const avg = ms.length ? ms.reduce((s, g) => s + parseFloat(g.score || 0), 0) / ms.length : 0;
+              return { criterion: c.criterion_name, score: rnd(avg), maxGrade: parseFloat(c.max_grade), weight: parseFloat(c.weight) };
+            });
+            const repPct = weightedPct(repG.map(g => ({ Criterion: g.criterion, Score: g.score })), repCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
+
+            const presG      = exGrades.filter(g => g.project_id === pid && g.category === 'Presentation');
+            const presDetails = presCfg.map(c => {
+              const ms  = presG.filter(g => g.criterion === c.criterion_name && (g.student_id === sid || g.student_id === 'GROUP'));
+              const avg = ms.length ? ms.reduce((s, g) => s + parseFloat(g.score || 0), 0) / ms.length : 0;
+              return { criterion: c.criterion_name, score: rnd(avg), maxGrade: parseFloat(c.max_grade), weight: parseFloat(c.weight) };
+            });
+            const presPct = weightedPct(presG.map(g => ({ Criterion: g.criterion, Score: g.score })), presCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
+
+            const final = (twScore * twW) + (repPct * repW) + (presPct * presW);
+            return {
+              studentId: sid, studentName: student.student_name,
+              twDetails, peerPct: rnd(peerPct), repDetails, presDetails,
+              summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: rnd(final), letterGrade: letterGrade(final) },
+            };
+          });
+
+          return { projectId: pid, title: proj.title || pid, type: projType, program: proj.program_type || '', supervisors: supNames, students: studentsData };
+        });
+
+        // Statistics
+        const allSR = projectDetails.flatMap(p => p.students.map(s => ({ ...s.summary, pt: p.type })));
+        const statsByType = {};
+        ['FYP1','FYP2'].forEach(pt => {
+          const gr = allSR.filter(r => r.pt === pt);
+          if (!gr.length) return;
+          const mean = gr.reduce((s, r) => s + r.finalGrade, 0) / gr.length;
+          const sd   = Math.sqrt(gr.reduce((s, r) => s + Math.pow(r.finalGrade - mean, 2), 0) / gr.length);
+          statsByType[pt] = { count: gr.length, mean: rnd(mean), sd: rnd(sd) };
+        });
+
+        // ABET
+        const abetByType = {};
+        ['FYP1','FYP2'].forEach(pt => {
+          const typeIds = new Set(projects.filter(p => p.type === pt).map(p => p.project_id));
+          if (!typeIds.size) return;
+          const tIndG = twGrades.filter(g => typeIds.has(g.project_id) && g.grade_type === 'Individual');
+          const tExG  = exGrades.filter(g => typeIds.has(g.project_id));
+          function computeABET2(tag) {
+            const cp = [];
+            indRubric.filter(r => String(r.abetOutcome || '') === tag).forEach(c => {
+              const gs = tIndG.filter(g => g.criterion === c.criterion);
+              if (!gs.length) return;
+              cp.push((gs.filter(g => parseFloat(g.grade || 0) >= 0.7 * c.maxGrade).length / gs.length) * 100);
+            });
+            exCfg.filter(c => String(c.abet_outcome || '') === tag).forEach(c => {
+              const cg = tExG.filter(g => g.criterion === c.criterion_name);
+              if (!cg.length) return;
+              cp.push((cg.filter(g => parseFloat(g.score || 0) >= 0.7 * parseFloat(c.max_grade || 100)).length / cg.length) * 100);
+            });
+            if (!cp.length) return null;
+            const avg2 = cp.reduce((a, b) => a + b, 0) / cp.length;
+            return { pct: rnd(avg2), level: avg2 < 60 ? 1 : avg2 < 70 ? 2 : avg2 < 85 ? 3 : 4 };
+          }
+          abetByType[pt] = { abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet7a: computeABET2('7a'), abet7b: computeABET2('7b') };
+        });
+
+        const now = new Date();
+        const yr  = `${now.getFullYear()}–${now.getFullYear() + 1}`;
+        return ok({ success: true, projects: projectDetails, statistics: statsByType, abet: abetByType, meta: { year: yr, semester: cfg.semester || '', department: 'ECE', weights: { tw: Math.round(twW * 100), report: Math.round(repW * 100), pres: Math.round(presW * 100) } } });
+      }
+
       case 'getFinalResults': {
         const [sessionToken] = args;
         const session = await verifySession(sessionToken);

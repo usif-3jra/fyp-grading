@@ -1672,9 +1672,180 @@ const Res = {
       </div>`;
   },
 
-  exportPDF() {
-    if (!this.allResults.length) { Toast.show('Load results first.', 'warning'); return; }
-    window.print();
+  async exportPDF() {
+    Spinner.show();
+    try {
+      const res = await gsrAuth('getDetailedResults');
+      if (!res.success) { Toast.show(res.message || 'Failed to load data.', 'error'); return; }
+      if (!res.projects.length) { Toast.show('No projects to export.', 'warning'); return; }
+
+      const { jsPDF } = window.jspdf;
+      const doc  = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const W    = 210, margin = 14, cW = W - 2 * margin;
+      const navy = [30, 58, 95], blue = [37, 99, 235], green = [22, 163, 74];
+      const lvlLabels = ['', 'Level 1 — Beginning', 'Level 2 — Developing', 'Level 3 — Accomplished', 'Level 4 — Exemplary'];
+      const abetKeys  = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
+      const abetLabel = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
+      const meta = res.meta || {};
+
+      const drawHeader = (doc) => {
+        doc.setFillColor(...navy);
+        doc.rect(0, 0, W, 26, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');   doc.setFontSize(13);
+        doc.text('Final Year Project — Assessment Report', W / 2, 9, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+        doc.text(`Beirut Arab University  ·  Faculty of Engineering  ·  ${meta.department || 'ECE'} Department`, W / 2, 15.5, { align: 'center' });
+        doc.text(`Academic Year ${meta.year || ''}${meta.semester ? '  ·  Semester: ' + meta.semester : ''}`, W / 2, 21, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+      };
+
+      let first = true;
+      for (const proj of res.projects) {
+        if (!first) doc.addPage();
+        first = false;
+        drawHeader(doc);
+        let y = 31;
+
+        // Project banner
+        doc.setFillColor(235, 242, 255);
+        doc.roundedRect(margin, y, cW, 16, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...navy);
+        doc.text(proj.title, margin + 3, y + 6.5);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
+        doc.text(`Type: ${proj.type}   |   Program: ${proj.program}   |   Supervisor(s): ${proj.supervisors.join(', ')}`, margin + 3, y + 13);
+        doc.setTextColor(0, 0, 0);
+        y += 20;
+
+        for (const stu of proj.students) {
+          if (y > 245) { doc.addPage(); drawHeader(doc); y = 31; }
+
+          // Student header strip
+          doc.setFillColor(...blue);
+          doc.rect(margin, y, cW, 7, 'F');
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+          doc.text(`${stu.studentName}   (${stu.studentId})`, margin + 3, y + 5);
+          doc.setTextColor(0, 0, 0);
+          y += 9;
+
+          // Teamwork individual table
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
+          doc.text('Teamwork — Individual Assessment', margin, y + 3.5);
+          y += 5;
+          doc.autoTable({
+            startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+            headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+            bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
+            footStyles: { fillColor: [220, 235, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+            columnStyles: { 0: { cellWidth: cW * 0.62 }, 1: { cellWidth: cW * 0.19, halign: 'center' }, 2: { cellWidth: cW * 0.19, halign: 'center' } },
+            head: [['Criterion', 'Grade', 'Max']],
+            body: stu.twDetails.map(d => [d.criterion, d.grade, d.maxGrade]),
+            foot: [[{ content: `Peer Evaluation`, styles: { fontStyle: 'bold' } }, { content: `${stu.peerPct}%`, colSpan: 2, styles: { halign: 'center' } }]],
+          });
+          y = doc.lastAutoTable.finalY + 3;
+
+          // Report grades
+          if (stu.repDetails.length) {
+            if (y > 255) { doc.addPage(); drawHeader(doc); y = 31; }
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
+            doc.text('Examiner — Report Grading', margin, y + 3.5);
+            y += 5;
+            doc.autoTable({
+              startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+              headStyles: { fillColor: [50, 90, 140], textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+              bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
+              columnStyles: { 0: { cellWidth: cW * 0.55 }, 1: { cellWidth: cW * 0.15, halign: 'center' }, 2: { cellWidth: cW * 0.15, halign: 'center' }, 3: { cellWidth: cW * 0.15, halign: 'center' } },
+              head: [['Criterion', 'Score', 'Max', 'Weight']],
+              body: stu.repDetails.map(d => [d.criterion, d.score, d.maxGrade, `${d.weight}%`]),
+            });
+            y = doc.lastAutoTable.finalY + 3;
+          }
+
+          // Presentation grades
+          if (stu.presDetails.length) {
+            if (y > 255) { doc.addPage(); drawHeader(doc); y = 31; }
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
+            doc.text('Examiner — Presentation Grading', margin, y + 3.5);
+            y += 5;
+            doc.autoTable({
+              startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+              headStyles: { fillColor: [50, 90, 140], textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+              bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
+              columnStyles: { 0: { cellWidth: cW * 0.55 }, 1: { cellWidth: cW * 0.15, halign: 'center' }, 2: { cellWidth: cW * 0.15, halign: 'center' }, 3: { cellWidth: cW * 0.15, halign: 'center' } },
+              head: [['Criterion', 'Score', 'Max', 'Weight']],
+              body: stu.presDetails.map(d => [d.criterion, d.score, d.maxGrade, `${d.weight}%`]),
+            });
+            y = doc.lastAutoTable.finalY + 3;
+          }
+
+          // Final summary
+          if (y > 260) { doc.addPage(); drawHeader(doc); y = 31; }
+          doc.autoTable({
+            startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+            headStyles: { fillColor: [...green], textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2 },
+            bodyStyles: { fontSize: 8.5, fontStyle: 'bold', cellPadding: 2.5, halign: 'center' },
+            columnStyles: { 0:{cellWidth:cW*0.2}, 1:{cellWidth:cW*0.2}, 2:{cellWidth:cW*0.2}, 3:{cellWidth:cW*0.2}, 4:{cellWidth:cW*0.2} },
+            head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Final Grade', 'Letter Grade']],
+            body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, stu.summary.letterGrade]],
+          });
+          y = doc.lastAutoTable.finalY + 8;
+        }
+      }
+
+      // ── Summary page ──────────────────────────────────────────────────────
+      doc.addPage();
+      doc.setFillColor(...navy);
+      doc.rect(0, 0, W, 26, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      doc.text('Assessment Summary & ABET Outcomes', W / 2, 10, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      doc.text(`Beirut Arab University  ·  ${meta.department || 'ECE'} Department  ·  Academic Year ${meta.year || ''}`, W / 2, 18, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+
+      let ys = 31;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+      doc.text('Grade Statistics', margin, ys + 4); ys += 8;
+      doc.setTextColor(0, 0, 0);
+      doc.autoTable({
+        startY: ys, margin: { left: margin, right: margin }, theme: 'grid',
+        headStyles: { fillColor: navy, textColor: 255, fontSize: 8.5, fontStyle: 'bold', cellPadding: 2.5 },
+        bodyStyles: { fontSize: 8.5, cellPadding: 2.5, halign: 'center' },
+        columnStyles: { 0: { fontStyle: 'bold', halign: 'left' } },
+        head: [['Type', 'Students', 'Mean Grade', 'Standard Deviation']],
+        body: ['FYP1','FYP2'].filter(t => res.statistics[t]).map(t => {
+          const s = res.statistics[t];
+          return [t, s.count, `${s.mean}%`, s.sd.toFixed ? s.sd.toFixed(2) : s.sd];
+        }),
+      });
+      ys = doc.lastAutoTable.finalY + 10;
+
+      const abetBody = abetKeys.map(k => {
+        const f1 = res.abet.FYP1?.[k], f2 = res.abet.FYP2?.[k];
+        if (!f1 && !f2) return null;
+        return [`Outcome ${abetLabel[k]}`, f1 ? `${f1.pct}%` : '—', f1 ? lvlLabels[f1.level] : '—', f2 ? `${f2.pct}%` : '—', f2 ? lvlLabels[f2.level] : '—'];
+      }).filter(Boolean);
+
+      if (abetBody.length) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+        doc.text('ABET Outcomes', margin, ys + 4); ys += 8;
+        doc.setTextColor(0, 0, 0);
+        doc.autoTable({
+          startY: ys, margin: { left: margin, right: margin }, theme: 'grid',
+          headStyles: { fillColor: navy, textColor: 255, fontSize: 8.5, fontStyle: 'bold', cellPadding: 2.5 },
+          bodyStyles: { fontSize: 8, cellPadding: 2.5 },
+          columnStyles: { 0:{fontStyle:'bold',cellWidth:cW*0.14}, 1:{halign:'center',cellWidth:cW*0.12}, 2:{cellWidth:cW*0.26}, 3:{halign:'center',cellWidth:cW*0.12}, 4:{cellWidth:cW*0.26} },
+          head: [['Outcome', 'FYP1 %', 'FYP1 Level', 'FYP2 %', 'FYP2 Level']],
+          body: abetBody,
+        });
+      }
+
+      const yr   = (meta.year || new Date().getFullYear()).toString().replace('–', '-');
+      const sem  = meta.semester ? `_S${meta.semester}` : '';
+      doc.save(`FYP_Assessment_Report_${yr}${sem}.pdf`);
+      Toast.show('PDF report downloaded.');
+    } catch (e) { Toast.show('PDF error: ' + (e.message || e), 'error'); console.error(e); }
+    finally { Spinner.hide(); }
   },
 };
 
