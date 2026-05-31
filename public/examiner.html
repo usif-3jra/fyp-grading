@@ -393,8 +393,11 @@ function renderPortal(data) {
     document.getElementById('notice-other-univ').classList.remove('d-none');
   }
 
-  const reportCriteria = data.config.filter(c => c.Category === 'Report');
-  const presCriteria   = data.config.filter(c => c.Category === 'Presentation');
+  const scopeOrder = c => (c.GradingScope || 'Individual') === 'Group' ? 0 : 1;
+  const reportCriteria = data.config.filter(c => c.Category === 'Report')
+                                    .sort((a, b) => scopeOrder(a) - scopeOrder(b));
+  const presCriteria   = data.config.filter(c => c.Category === 'Presentation')
+                                    .sort((a, b) => scopeOrder(a) - scopeOrder(b));
 
   renderSection('report-sections',       reportCriteria, 'Report',       data.students);
   renderSection('presentation-sections', presCriteria,   'Presentation', data.students);
