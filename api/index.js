@@ -952,7 +952,7 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
 
-        const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg] = await Promise.all([
+        const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg, allExaminers] = await Promise.all([
           sql`SELECT * FROM projects`,
           sql`SELECT * FROM students`,
           sql`SELECT * FROM tw_grades`,
@@ -961,6 +961,7 @@ module.exports = async function handler(req, res) {
           sql`SELECT * FROM supervisors`,
           sql`SELECT * FROM examiner_config ORDER BY id`,
           sql`SELECT * FROM peer_config ORDER BY question_no`,
+          sql`SELECT * FROM examiners`,
         ]);
         const cfg       = await getTWConfig();
         const indRubric = await getIndividualRubric();
@@ -982,44 +983,64 @@ module.exports = async function handler(req, res) {
           const projExCfg    = exCfg.filter(c => !c.project_type || c.project_type === projType);
           const repCfg       = projExCfg.filter(c => c.category === 'Report');
           const presCfg      = projExCfg.filter(c => c.category === 'Presentation');
+          const projGrades   = exGrades.filter(g => g.project_id === pid);
+          const projExList   = allExaminers.filter(e => e.project_id === pid);
+
+          // Grade lookup: assignmentId -> criterion -> studentId -> score
+          const gLookup = {};
+          projGrades.forEach(g => {
+            if (!gLookup[g.assignment_id]) gLookup[g.assignment_id] = {};
+            if (!gLookup[g.assignment_id][g.criterion]) gLookup[g.assignment_id][g.criterion] = {};
+            gLookup[g.assignment_id][g.criterion][g.student_id] = parseFloat(g.score || 0);
+          });
+
+          // Examiners who submitted each category
+          const repExaminers  = projExList.filter(e => projGrades.some(g => g.assignment_id === e.assignment_id && g.category === 'Report'));
+          const presExaminers = projExList.filter(e => projGrades.some(g => g.assignment_id === e.assignment_id && g.category === 'Presentation'));
+
+          // Build per-examiner table for a category
+          const buildExTable = (examList, criteria, category, sid) => {
+            if (!examList.length || !criteria.length) return null;
+            const exNames = examList.map(e => `${e.examiner_name || e.examiner_email} (${e.examiner_type})`);
+            const rows = criteria.map((c, idx) => {
+              const isGroup  = (c.grading_scope || 'Individual') === 'Group';
+              const lookupId = isGroup ? 'GROUP' : sid;
+              const scores   = examList.map(e => {
+                const s = gLookup[e.assignment_id]?.[c.criterion_name]?.[lookupId];
+                return s !== undefined ? s : null;
+              });
+              return { num: idx + 1, criterion: c.criterion_name, scope: isGroup ? 'Group' : 'Individual', maxGrade: parseFloat(c.max_grade), weight: parseFloat(c.weight), scores };
+            });
+            const allG  = projGrades.filter(g => g.category === category && (g.student_id === sid || g.student_id === 'GROUP'));
+            const pctVal = weightedPct(allG.map(g => ({ Criterion: g.criterion, Score: g.score })), criteria.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
+            return { examiners: exNames, rows, pct: rnd(pctVal) };
+          };
 
           const studentsData = projStudents.map(student => {
             const sid = student.student_id;
 
-            const twDetails = indRubric.map(r => {
+            const twDetails = indRubric.map((r, idx) => {
               const g = twGrades.find(g => g.student_id === sid && g.criterion === r.criterion && g.grade_type === 'Individual');
-              return { criterion: r.criterion, grade: g ? parseFloat(g.grade) : 0, maxGrade: Number(r.maxGrade || 25) };
+              return { num: idx + 1, criterion: r.criterion, grade: g ? parseFloat(g.grade) : 0, maxGrade: Number(r.maxGrade || 25) };
             });
             const indMax  = indRubric.reduce((s, r) => s + Number(r.maxGrade || 25), 0) || 100;
             const indPct  = pct(twDetails.reduce((s, d) => s + d.grade, 0), indMax);
-
             const peer      = peerEvals.filter(e => e.evaluated_id === sid);
             const maxPeer   = peerCfg.reduce((s, q) => s + parseFloat(q.max_grade || 10), 0);
             const peerCount = peerCfg.length || 1;
             const peerPct   = pct(peer.reduce((s, e) => s + parseFloat(e.grade || 0), 0), maxPeer * (peer.length / peerCount));
+            const twScore   = (indPct * supW) + (peerPct * peerW);
 
-            const twScore = (indPct * supW) + (peerPct * peerW);
+            const repTable  = buildExTable(repExaminers,  repCfg,  'Report',       sid);
+            const presTable = buildExTable(presExaminers, presCfg, 'Presentation', sid);
+            const repPct    = repTable  ? repTable.pct  : 0;
+            const presPct   = presTable ? presTable.pct : 0;
+            const final     = (twScore * twW) + (repPct * repW) + (presPct * presW);
 
-            const repG      = exGrades.filter(g => g.project_id === pid && g.category === 'Report');
-            const repDetails = repCfg.map(c => {
-              const ms  = repG.filter(g => g.criterion === c.criterion_name && (g.student_id === sid || g.student_id === 'GROUP'));
-              const avg = ms.length ? ms.reduce((s, g) => s + parseFloat(g.score || 0), 0) / ms.length : 0;
-              return { criterion: c.criterion_name, score: rnd(avg), maxGrade: parseFloat(c.max_grade), weight: parseFloat(c.weight) };
-            });
-            const repPct = weightedPct(repG.map(g => ({ Criterion: g.criterion, Score: g.score })), repCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
-
-            const presG      = exGrades.filter(g => g.project_id === pid && g.category === 'Presentation');
-            const presDetails = presCfg.map(c => {
-              const ms  = presG.filter(g => g.criterion === c.criterion_name && (g.student_id === sid || g.student_id === 'GROUP'));
-              const avg = ms.length ? ms.reduce((s, g) => s + parseFloat(g.score || 0), 0) / ms.length : 0;
-              return { criterion: c.criterion_name, score: rnd(avg), maxGrade: parseFloat(c.max_grade), weight: parseFloat(c.weight) };
-            });
-            const presPct = weightedPct(presG.map(g => ({ Criterion: g.criterion, Score: g.score })), presCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
-
-            const final = (twScore * twW) + (repPct * repW) + (presPct * presW);
             return {
               studentId: sid, studentName: student.student_name,
-              twDetails, peerPct: rnd(peerPct), repDetails, presDetails,
+              twDetails, indPct: rnd(indPct), peerPct: rnd(peerPct), twScore: rnd(twScore),
+              repTable, presTable,
               summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: rnd(final), letterGrade: letterGrade(final) },
             };
           });
@@ -1065,8 +1086,9 @@ module.exports = async function handler(req, res) {
         });
 
         const now = new Date();
-        const yr  = `${now.getFullYear()}–${now.getFullYear() + 1}`;
-        return ok({ success: true, projects: projectDetails, statistics: statsByType, abet: abetByType, meta: { year: yr, semester: cfg.semester || '', department: 'ECE', weights: { tw: Math.round(twW * 100), report: Math.round(repW * 100), pres: Math.round(presW * 100) } } });
+        return ok({ success: true, projects: projectDetails, statistics: statsByType, abet: abetByType,
+          meta: { year: `${now.getFullYear()}–${now.getFullYear()+1}`, semester: cfg.semester || '', department: 'ECE',
+            weights: { tw: Math.round(twW*100), report: Math.round(repW*100), pres: Math.round(presW*100) } } });
       }
 
       case 'getFinalResults': {
