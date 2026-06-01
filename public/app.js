@@ -1686,7 +1686,7 @@ const Res = {
           return await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = () => r(null); fr.readAsDataURL(blob); });
         } catch { return null; }
       };
-      const logo = await loadImg('https://usif-3jra.github.io/epme-study-plan/assets/logo_ECE.png');
+      const logo = await loadImg('https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png');
 
       const { jsPDF } = window.jspdf;
       const W = 210, margin = 14, cW = W - 2 * margin;
@@ -1698,6 +1698,7 @@ const Res = {
       const abetKeys = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
       const abetLbl  = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
       const meta = res.meta || {};
+      const genDate = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
       const yr   = (meta.year || String(new Date().getFullYear())).replace('–','-');
       const sem  = meta.semester ? `_S${meta.semester}` : '';
 
@@ -1768,7 +1769,7 @@ const Res = {
           doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...navy);
           doc.text(proj.title, margin + 3, y + 7);
           doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
-          doc.text(`Type: ${proj.type}   ·   Program: ${proj.program}   ·   Supervisor(s): ${proj.supervisors.join(', ')}`, margin + 3, y + 14);
+          doc.text(`Type: ${proj.type}   ·   Program: ${proj.program}   ·   Supervisor(s): ${proj.supervisors.join(', ')}   ·   Generated: ${genDate}`, margin + 3, y + 14);
           doc.setTextColor(0, 0, 0);
           y += 21;
 
@@ -1803,7 +1804,7 @@ const Res = {
               headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8, halign: 'center' },
               bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
               footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
-              columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: cW * 0.62 }, 2: { cellWidth: cW * 0.19, halign: 'center' }, 3: { cellWidth: cW * 0.19, halign: 'center' } },
+              columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: (cW - 7) * 0.62 }, 2: { cellWidth: (cW - 7) * 0.19, halign: 'center' }, 3: { cellWidth: (cW - 7) * 0.19, halign: 'center' } },
               head: [['#', 'Criterion', 'Grade', 'Max']],
               body: stu.twDetails.map(d => [d.num, d.criterion, d.grade, d.maxGrade]),
               foot: [
