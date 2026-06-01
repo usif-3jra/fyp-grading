@@ -948,6 +948,11 @@ module.exports = async function handler(req, res) {
         if (selfEmail && (examiners || []).some(e => String(e.email).toLowerCase() === selfEmail))
           return ok({ success: false, message: 'You cannot assign yourself as an examiner.' });
 
+        // Require at least one non-Industry examiner to ensure the Report is graded
+        const hasInternal = (examiners || []).some(e => e.type === 'Inside University' || e.type === 'Outside the Program/University');
+        if (!hasInternal)
+          return ok({ success: false, message: 'At least one Internal examiner must be assigned to ensure the Report component is graded.' });
+
         const existing  = await sql`SELECT * FROM examiners WHERE project_id = ${projectId}`;
         const newEmails = (examiners || []).map(e => String(e.email).toLowerCase());
 
@@ -1052,6 +1057,33 @@ module.exports = async function handler(req, res) {
         );
         await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${assignmentId} AND status = 'Assigned'`;
         return ok({ success: true });
+      }
+
+      case 'sendPendingExaminerEmails': {
+        const [sessionToken, projectId] = args;
+        if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
+        const rows = await sql`
+          SELECT e.*, p.title, p.type AS project_type
+          FROM examiners e JOIN projects p ON p.project_id = e.project_id
+          WHERE e.project_id = ${projectId} AND e.status = 'Assigned'`;
+        if (!rows.length) return ok({ success: true, sent: 0 });
+        await Promise.all(rows.map(async e => {
+          const link = `${APP_URL}/examiner.html?token=${e.token}`;
+          await sendEmail(
+            e.examiner_email,
+            `FYP Grading Assignment — ${e.title || projectId}`,
+            buildExaminerEmail({
+              name:         e.examiner_name,
+              projectTitle: e.title || projectId,
+              examinerType: e.examiner_type,
+              projectType:  e.project_type || '',
+              reportLink:   e.examiner_type !== 'Industry' ? (e.report_link || '') : '',
+              gradingLink:  link,
+            })
+          );
+          await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${e.assignment_id} AND status = 'Assigned'`;
+        }));
+        return ok({ success: true, sent: rows.length });
       }
 
       // ─── Examiner Portal ─────────────────────────────────────────────
@@ -1359,11 +1391,15 @@ module.exports = async function handler(req, res) {
           if (!projExaminers.length)
             missing.push('No examiners assigned yet');
           projExaminers.forEach(examiner => {
+            const name  = examiner.examiner_name || examiner.examiner_email;
+            const eType = examiner.examiner_type;
+            if (examiner.status === 'Assigned') {
+              missing.push(`${name} (${eType}) — invitation email not yet sent`);
+              return; // no point checking grades if email was never sent
+            }
             const eg      = exGrades.filter(g => g.assignment_id === examiner.assignment_id);
             const hasRep  = eg.some(g => g.category === 'Report');
             const hasPres = eg.some(g => g.category === 'Presentation');
-            const name    = examiner.examiner_name || examiner.examiner_email;
-            const eType   = examiner.examiner_type;
             if (eType === 'Industry') {
               if (!hasPres) missing.push(`${name} (Industry) — Presentation grades missing`);
             } else {

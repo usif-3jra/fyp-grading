@@ -1298,7 +1298,6 @@ const Ex = {
   },
 
   onProjectChange() {
-    document.getElementById('btnSendEmail').classList.add('d-none');
     this.assignments = [];
     this.refreshStatus();
   },
@@ -1336,6 +1335,11 @@ const Ex = {
       Toast.show('You cannot assign yourself as an examiner.', 'error'); return;
     }
 
+    const hasInternal = examiners.some(e => e.type === 'Inside University' || e.type === 'Outside the Program/University');
+    if (!hasInternal) {
+      Toast.show('At least one Internal examiner must be assigned to ensure the Report component is graded.', 'error'); return;
+    }
+
     Spinner.show();
     try {
       const res = await gsrAuth('assignExaminers', pid, examiners, reportLink);
@@ -1348,25 +1352,23 @@ const Ex = {
       }
 
       if (this.assignments.length) {
-        Toast.show('Examiners assigned. Now send invitation emails.');
-        document.getElementById('btnSendEmail').classList.remove('d-none');
+        Toast.show('Examiners assigned. Use the "Send All Pending Emails" button in the Examiner Status table to send invitations.');
       } else {
         Toast.show('No new examiners to email — all were already invited.');
-        document.getElementById('btnSendEmail').classList.add('d-none');
       }
       this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
 
-  async sendEmails() {
+  async sendAllEmails() {
     const pid = document.getElementById('ex-project-sel').value;
-    if (!this.assignments.length) { Toast.show('Assign examiners first.', 'warning'); return; }
+    if (!pid) { Toast.show('Select a project first.', 'warning'); return; }
     Spinner.show();
     try {
-      const res = await gsrAuth('sendExaminerEmails', pid, this.assignments);
+      const res = await gsrAuth('sendPendingExaminerEmails', pid);
       if (!res.success) throw new Error(res.message);
-      Toast.show('Invitation emails sent successfully.');
+      Toast.show(res.sent > 0 ? `Invitation emails sent to ${res.sent} examiner(s).` : 'All examiners have already been emailed.');
       await this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
@@ -1376,8 +1378,11 @@ const Ex = {
     const pid = document.getElementById('ex-project-sel').value;
     const c   = document.getElementById('examinerStatusTable');
     if (!pid) { c.innerHTML = '<p class="text-muted small">Select a project to see examiner status.</p>'; return; }
+    const sendAllBtn = document.getElementById('btnSendAllEmails');
     try {
       const examiners = await gsrAuth('getExaminersForProject', pid);
+      const hasPending = examiners.some(e => (e.Status || 'Assigned') === 'Assigned');
+      if (sendAllBtn) sendAllBtn.classList.toggle('d-none', !hasPending);
       if (!examiners.length) { c.innerHTML = '<p class="text-muted small">No examiners assigned yet.</p>'; return; }
       const emailSent  = st => st !== 'Assigned';
       const gradeCell  = v => v
@@ -1410,7 +1415,10 @@ const Ex = {
           }).join('')}
           </tbody>
         </table>`;
-    } catch (err) { console.warn(err); }
+    } catch (err) {
+      if (sendAllBtn) sendAllBtn.classList.add('d-none');
+      console.warn(err);
+    }
   },
 
   async removeExaminer(assignmentId, pid) {
