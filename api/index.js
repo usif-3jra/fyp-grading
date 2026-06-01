@@ -942,6 +942,12 @@ module.exports = async function handler(req, res) {
         const link = String(reportLink || '');
         if (link && !link.startsWith('https://')) return ok({ success: false, message: 'Report link must use HTTPS.' });
 
+        // Prevent supervisor from assigning themselves as an examiner
+        const selfSupRow = await sql`SELECT email FROM supervisors WHERE supervisor_id = ${session.supervisor_id}`;
+        const selfEmail  = selfSupRow[0] ? String(selfSupRow[0].email).toLowerCase() : '';
+        if (selfEmail && (examiners || []).some(e => String(e.email).toLowerCase() === selfEmail))
+          return ok({ success: false, message: 'You cannot assign yourself as an examiner.' });
+
         const existing  = await sql`SELECT * FROM examiners WHERE project_id = ${projectId}`;
         const newEmails = (examiners || []).map(e => String(e.email).toLowerCase());
 
@@ -1349,7 +1355,10 @@ module.exports = async function handler(req, res) {
             missing.push('Teamwork grades not submitted by supervisor');
 
           // c/d/e. Per examiner — required categories depend on examiner type
-          allExaminers.filter(e => e.project_id === pid).forEach(examiner => {
+          const projExaminers = allExaminers.filter(e => e.project_id === pid);
+          if (!projExaminers.length)
+            missing.push('No examiners assigned yet');
+          projExaminers.forEach(examiner => {
             const eg      = exGrades.filter(g => g.assignment_id === examiner.assignment_id);
             const hasRep  = eg.some(g => g.category === 'Report');
             const hasPres = eg.some(g => g.category === 'Presentation');

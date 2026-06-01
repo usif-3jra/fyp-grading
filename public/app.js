@@ -1291,7 +1291,8 @@ const Ex = {
   _onIntProgChange(progSel) {
     const row    = progSel.closest('.ex-row');
     const supSel = row.querySelector('.ex-int-sup');
-    const sups   = this.allSupsCache.filter(s => s.program === progSel.value);
+    const selfId = Auth.supervisor && Auth.supervisor.id;
+    const sups   = this.allSupsCache.filter(s => s.program === progSel.value && s.id !== selfId);
     supSel.innerHTML = '<option value="">Select supervisor…</option>' +
       sups.map(s => `<option value="${s.id}" data-email="${s.email}" data-name="${s.name}">${s.name}</option>`).join('');
   },
@@ -1329,6 +1330,11 @@ const Ex = {
     if (!pid) { Toast.show('Select a project first.', 'warning'); return; }
     const examiners = this._gatherExaminers();
     if (!examiners.length) { Toast.show('Add at least one complete examiner row.', 'warning'); return; }
+
+    const selfEmail = Auth.supervisor && Auth.supervisor.email ? Auth.supervisor.email.toLowerCase() : '';
+    if (selfEmail && examiners.some(e => e.email.toLowerCase() === selfEmail)) {
+      Toast.show('You cannot assign yourself as an examiner.', 'error'); return;
+    }
 
     Spinner.show();
     try {
