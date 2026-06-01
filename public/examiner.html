@@ -207,7 +207,7 @@
             <span class="gl-badge gl-begin">Beginning 45–59</span>
             <span class="gl-badge gl-dev">Developing 60–75</span>
             <span class="gl-badge gl-accomp">Accomplished 76–89</span>
-            <span class="gl-badge gl-exempl">Exemplary 90–95</span>
+            <span class="gl-badge gl-exempl">Exemplary 90–100</span>
           </div>
           <a href="https://baudom-my.sharepoint.com/:i:/g/personal/yousef_ajrah_bau_edu_lb/IQBpMgha1ETOSJKNLORd-HRRARPbP8qo3MxNViRqTvQINU4?e=iwNuHl" target="_blank" class="rubric-ref-btn flex-shrink-0">
             <i class="fas fa-image"></i>View Report Rubric
@@ -233,7 +233,7 @@
             <span class="gl-badge gl-begin">Beginning 45–59</span>
             <span class="gl-badge gl-dev">Developing 60–75</span>
             <span class="gl-badge gl-accomp">Accomplished 76–89</span>
-            <span class="gl-badge gl-exempl">Exemplary 90–95</span>
+            <span class="gl-badge gl-exempl">Exemplary 90–100</span>
           </div>
           <a href="https://baudom-my.sharepoint.com/:i:/g/personal/yousef_ajrah_bau_edu_lb/IQA7aZwOt-lGRbdyKIRmf-EBAQjYKdln3BMwi3jSew3k2MY?e=fNygJO" target="_blank" class="rubric-ref-btn flex-shrink-0">
             <i class="fas fa-image"></i>View Presentation Rubric
@@ -566,8 +566,13 @@ function submitGrades() {
   document.querySelectorAll(inputSel).forEach(inp => {
     const val = parseFloat(inp.value);
     const max = parseFloat(inp.dataset.max);
+    const minAllowed = max * 0.45;
     if (inp.value === '' || isNaN(val) || val < 0 || val > max) {
       inp.style.borderColor = '#dc2626';
+      valid = false;
+      if (!firstInvalid) firstInvalid = inp;
+    } else if (val < minAllowed) {
+      inp.style.borderColor = '#f59e0b';
       valid = false;
       if (!firstInvalid) firstInvalid = inp;
     } else {
@@ -582,7 +587,14 @@ function submitGrades() {
   });
 
   if (!valid) {
-    showError('Please fill all required grade fields with valid values before submitting.');
+    const hasBelow45 = document.querySelectorAll(inputSel + '[style*="f59e0b"]').length > 0 ||
+      [...document.querySelectorAll(inputSel)].some(inp => {
+        const v = parseFloat(inp.value), m = parseFloat(inp.dataset.max);
+        return !isNaN(v) && v >= 0 && v < m * 0.45;
+      });
+    showError(hasBelow45
+      ? 'Grades below 45% of the maximum are not allowed (minimum is Beginning level: 45%). Please review the highlighted fields.'
+      : 'Please fill all required grade fields with valid values before submitting.');
     if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }

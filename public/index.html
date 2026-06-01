@@ -63,6 +63,9 @@
       </div>
     </div>
     <div class="header-actions d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalFeedback" title="Send feedback or report an issue">
+        <i class="fas fa-comment-dots me-1"></i>Feedback
+      </button>
       <button class="btn btn-sm btn-warning d-none" id="btn-manage-users" data-bs-toggle="modal" data-bs-target="#modalManageUsers" title="Manage Supervisor Credentials (Admin)">
         <i class="fas fa-users-cog me-1"></i>Manage Users
       </button>
@@ -276,15 +279,32 @@
                   </div>
                   <button class="btn btn-primary btn-sm" onclick="TW.saveConfig()"><i class="fas fa-save me-1"></i>Save Weights</button>
 
-                  <!-- Admin-only: Semester End Date -->
+                  <!-- Admin-only: Semester End Date & Week 14 Lock -->
                   <hr class="admin-only-field"/>
                   <div class="admin-only-field">
                     <label class="form-label fw-semibold">
-                      <i class="fas fa-calendar-check me-1 text-danger"></i>Semester End Date (Week 14)
+                      <i class="fas fa-calendar-check me-1 text-danger"></i>Semester End Date
                     </label>
                     <input type="date" id="cfg-semester-end" class="form-control mb-2"/>
                     <div class="form-text mb-2">Examiners cannot grade Presentation until this date passes.</div>
-                    <button class="btn btn-outline-danger btn-sm" onclick="TW.saveSemesterEndDate()"><i class="fas fa-calendar-check me-1"></i>Save End Date</button>
+                    <button class="btn btn-outline-danger btn-sm mb-3" onclick="TW.saveSemesterEndDate()"><i class="fas fa-calendar-check me-1"></i>Save End Date</button>
+
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-lock me-1 text-warning"></i>Week 14 TW Grade Lock Date
+                    </label>
+                    <input type="date" id="cfg-week14-date" class="form-control mb-2"/>
+                    <div class="form-text mb-2">Supervisors cannot edit teamwork grades after this date. Saved grades are automatically finalized.</div>
+                    <button class="btn btn-outline-warning btn-sm mb-3" onclick="TW.saveWeek14Date()"><i class="fas fa-lock me-1"></i>Save Week 14 Date</button>
+
+                    <hr style="margin:4px 0 12px;"/>
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="cfg-tw-locked" role="switch" onchange="TW.setLock(this.checked)"/>
+                        <label class="form-check-label fw-semibold" for="cfg-tw-locked">Lock TW Grading Now</label>
+                      </div>
+                      <span id="tw-lock-badge" class="badge bg-success">Unlocked</span>
+                    </div>
+                    <div class="form-text mt-1">Manually lock or unlock supervisor teamwork grading at any time, regardless of the Week 14 date.</div>
                   </div>
                 </div>
               </div>
@@ -391,6 +411,11 @@
           </div>
 
           <div id="twGradingArea" class="d-none">
+            <!-- Week 14 lock notice (shown when locked) -->
+            <div id="tw-locked-notice" class="alert alert-danger d-none mb-3">
+              <i class="fas fa-lock me-2"></i><strong>Teamwork Grading Locked:</strong> The Week 14 deadline has passed. Grades are finalized and cannot be changed.
+            </div>
+
             <!-- Individual Grading Matrix -->
             <div class="card card-section mb-4">
               <div class="card-body">
@@ -405,9 +430,14 @@
               </div>
             </div>
 
-            <button class="btn btn-success btn-lg" onclick="TW.submitGrades()">
-              <i class="fas fa-check-circle me-2"></i>Submit Teamwork Grades
-            </button>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-outline-primary btn-lg" id="btn-tw-save-draft" onclick="TW.saveDraft()">
+                <i class="fas fa-save me-2"></i>Save Draft
+              </button>
+              <button class="btn btn-success btn-lg" id="btn-tw-submit" onclick="TW.submitGrades()">
+                <i class="fas fa-check-circle me-2"></i>Submit Teamwork Grades
+              </button>
+            </div>
           </div>
         </div>
 
@@ -707,6 +737,33 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Reg.saveSupervisorToSystem()"><i class="fas fa-save me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: Feedback ═══════════ -->
+<div class="modal fade" id="modalFeedback" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-comment-dots me-2 text-primary"></i>Send Feedback / Report an Issue</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Share comments, suggestions, or report any issue with the FYP system. Your message will be sent directly to the admin.</p>
+        <div class="mb-3">
+          <label class="form-label fw-medium">Your Message <span class="text-danger">*</span></label>
+          <textarea id="feedback-message" class="form-control" rows="5" placeholder="Describe your issue or suggestion…"></textarea>
+        </div>
+        <div id="feedback-err" class="alert alert-danger py-2 d-none"></div>
+        <div id="feedback-ok" class="alert alert-success py-2 d-none"><i class="fas fa-check-circle me-1"></i>Your feedback has been sent. Thank you!</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-send-feedback" onclick="Feedback.send()">
+          <i class="fas fa-paper-plane me-1"></i>Send Feedback
+        </button>
       </div>
     </div>
   </div>
