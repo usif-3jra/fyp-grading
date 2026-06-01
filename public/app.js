@@ -1611,13 +1611,13 @@ const Res = {
       this.abetByType  = res.abetByType  || {};
       this.statsByType = res.statsByType || {};
       this.applyFilter();
-      this._setExportEnabled(true);
-      // Show per-type incomplete warning alongside results when only some types are ready
+      // Enable Export PDF only when every type is fully complete — no missing items at all
       if (res.incompleteByType && Object.keys(res.incompleteByType).length) {
         this._showIncomplete(res.incompleteByType);
       } else {
         const warn = document.getElementById('res-incomplete-warning');
         if (warn) { warn.innerHTML = ''; warn.classList.add('d-none'); }
+        this._setExportEnabled(true);
       }
       const done = (res.completeTypes || []).join(' & ') || 'results';
       Toast.show(`Results loaded — ${res.results.length} student(s) (${done} complete).`);
