@@ -389,7 +389,7 @@ module.exports = async function handler(req, res) {
       <tr><td><a href="https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAaH-tzBurxrjb6gd-c6AvyU?e=K5B6xq" style="display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;">FYP 1 &amp; 2 Rubrics</a></td></tr>
     </table>
     <p style="margin:0 0 8px;">Should you encounter any issues or have suggestions for improving the system, you are welcome to submit your feedback directly through the <strong>Feedback</strong> button available on the dashboard after logging in.</p>
-    <p style="margin:0 0 4px;">Warm regards,</p>
+    <p style="margin:0 0 4px;">Best regards,</p>
     <p style="margin:0 0 2px;font-weight:600;">ECE Department Administration</p>
     <p style="margin:0;color:#6b7280;font-size:13px;">Faculty of Engineering — Beirut Arab University</p>
   </td></tr>
@@ -575,6 +575,28 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
         await sql`INSERT INTO tw_config (config_key, config_value) VALUES ('tw_locked', ${locked ? 'true' : 'false'}) ON CONFLICT (config_key) DO UPDATE SET config_value = ${locked ? 'true' : 'false'}`;
+        if (locked) {
+          const [allProjects, allStudents, existingGrades] = await Promise.all([
+            sql`SELECT * FROM projects`,
+            sql`SELECT * FROM students`,
+            sql`SELECT * FROM tw_grades WHERE grade_type = 'Individual'`,
+          ]);
+          const indRubric = await getIndividualRubric();
+          const ts = new Date().toISOString();
+          for (const proj of allProjects) {
+            const projStudents = allStudents.filter(s => s.project_id === proj.project_id);
+            const projGrades   = existingGrades.filter(g => g.project_id === proj.project_id);
+            for (const student of projStudents) {
+              for (const r of indRubric) {
+                const hasGrade = projGrades.some(g => g.student_id === student.student_id && g.criterion === r.criterion);
+                if (!hasGrade) {
+                  const minGrade = Math.round(Number(r.maxGrade || 25) * 0.45 * 10) / 10;
+                  await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${proj.project_id}, ${student.student_id}, ${r.criterion}, ${minGrade}, ${'system'}, ${'Individual'}, ${ts})`;
+                }
+              }
+            }
+          }
+        }
         return ok({ success: true, locked: !!locked });
       }
 
@@ -600,6 +622,29 @@ module.exports = async function handler(req, res) {
         const [sessionToken, projectId] = args;
         const session = await verifySession(sessionToken);
         if (!session) return ok([]);
+
+        const twCfgG = await getTWConfig();
+        const dateLocked = twCfgG.week14_date && (() => { const w = new Date(twCfgG.week14_date); w.setHours(23,59,59,999); return new Date() > w; })();
+        const isLockedG  = twCfgG.tw_locked === 'true' || dateLocked;
+
+        if (isLockedG) {
+          const [projStudents, existingG] = await Promise.all([
+            sql`SELECT * FROM students WHERE project_id = ${projectId}`,
+            sql`SELECT * FROM tw_grades WHERE project_id = ${projectId} AND grade_type = 'Individual'`,
+          ]);
+          const indRubric = await getIndividualRubric();
+          const ts = new Date().toISOString();
+          for (const student of projStudents) {
+            for (const r of indRubric) {
+              const hasGrade = existingG.some(g => g.student_id === student.student_id && g.criterion === r.criterion);
+              if (!hasGrade) {
+                const minGrade = Math.round(Number(r.maxGrade || 25) * 0.45 * 10) / 10;
+                await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${projectId}, ${student.student_id}, ${r.criterion}, ${minGrade}, ${'system'}, ${'Individual'}, ${ts})`;
+              }
+            }
+          }
+        }
+
         const rows = await sql`
           SELECT DISTINCT ON (g.student_id, g.criterion)
             g.student_id, g.criterion, g.grade, g.graded_by, s.name AS supervisor_name
@@ -612,7 +657,7 @@ module.exports = async function handler(req, res) {
           studentId:  r.student_id,
           criterion:  r.criterion,
           grade:      Number(r.grade),
-          gradedBy:   r.supervisor_name || r.graded_by,
+          gradedBy:   r.graded_by === 'system' ? 'Auto-filled (45% min)' : (r.supervisor_name || r.graded_by),
           isMe:       r.graded_by === session.supervisor_id,
         })));
       }
