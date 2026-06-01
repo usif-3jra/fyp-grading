@@ -516,6 +516,7 @@ const Reg = {
         </tr>`;
       }).join('');
     } catch (e) { console.warn('loadProjects', e); }
+    App.loadKPIs().catch(() => {});
   },
 
   editProject(id) {
