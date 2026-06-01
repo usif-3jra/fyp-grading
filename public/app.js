@@ -1589,7 +1589,13 @@ const Res = {
   abetByType:  {},
   statsByType: {},
 
+  _setExportEnabled(enabled) {
+    const btn = document.getElementById('btn-export-pdf');
+    if (btn) btn.disabled = !enabled;
+  },
+
   async load() {
+    this._setExportEnabled(false);
     Spinner.show();
     try {
       const res = await gsrAuth('getFinalResults');
@@ -1605,6 +1611,7 @@ const Res = {
       this.abetByType  = res.abetByType  || {};
       this.statsByType = res.statsByType || {};
       this.applyFilter();
+      this._setExportEnabled(true);
       // Show per-type incomplete warning alongside results when only some types are ready
       if (res.incompleteByType && Object.keys(res.incompleteByType).length) {
         this._showIncomplete(res.incompleteByType);
