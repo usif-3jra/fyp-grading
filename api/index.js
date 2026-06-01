@@ -52,7 +52,7 @@ function buildExaminerEmail({ name, projectTitle, examinerType, projectType, rep
     <p style="margin:0 0 16px;font-size:12px;color:#6b7280;">This link is unique to you — do not share it with anyone.</p>
     <table cellpadding="0" cellspacing="0" style="margin:0 0 12px;"><tr><td><a href="${gradingLink}" style="${ghost}">Open Grading Portal</a></td></tr></table>
     <p style="margin:0 0 12px;font-size:13px;color:#6b7280;">To access the FYP assessment rubrics, please use the button below:</p>
-    <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td><a href="https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAaH-tzBurxrjb6gd-c6AvyU?e=K5B6xq" style="${ghost}">FYP 1 &amp; 2 Rubrics</a></td></tr></table>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td><a href="https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf" style="${ghost}">FYP 1 &amp; 2 Rubrics</a></td></tr></table>
     <p style="margin:0 0 8px;font-size:14px;">Should you encounter any issues or have suggestions for improving the system, you are welcome to submit your feedback through the dashboard after logging in.</p>
     <p style="margin:0 0 4px;">Best regards,</p>
     <p style="margin:0 0 2px;font-weight:600;">ECE Department Administration</p>
@@ -437,7 +437,7 @@ module.exports = async function handler(req, res) {
     </table>
     <p style="margin:0 0 12px;color:#6b7280;font-size:13px;">To access the FYP assessment rubrics, please use the button below:</p>
     <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-      <tr><td><a href="https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAaH-tzBurxrjb6gd-c6AvyU?e=K5B6xq" style="display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;">FYP 1 &amp; 2 Rubrics</a></td></tr>
+      <tr><td><a href="https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf" style="display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;">FYP 1 &amp; 2 Rubrics</a></td></tr>
     </table>
     <p style="margin:0 0 8px;">Should you encounter any issues or have suggestions for improving the system, you are welcome to submit your feedback directly through the <strong>Feedback</strong> button available on the dashboard after logging in.</p>
     <p style="margin:0 0 4px;">Best regards,</p>

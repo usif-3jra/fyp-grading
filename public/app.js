@@ -69,7 +69,7 @@ const Auth = {
 
     const btn = document.getElementById('btn-login');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing in…';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" style="width:1rem;height:1rem;border-width:.15em;vertical-align:-.125em;"></span>Signing in…';
 
     try {
       const res = await gsr('loginSupervisor', id, pwd);
@@ -2127,7 +2127,7 @@ const Feedback = {
 
     const btn = document.getElementById('btn-send-feedback');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending…';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;border-width:.15em;vertical-align:-.125em;"></span>';
     try {
       const res = await gsrAuth('submitFeedback', msg);
       if (!res.success) throw new Error(res.message);
