@@ -66,6 +66,10 @@
       <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalFeedback" title="Send feedback or report an issue">
         <i class="fas fa-comment-dots me-1"></i>Feedback
       </button>
+      <button class="btn btn-sm btn-outline-light d-none admin-only-field position-relative" id="btn-view-feedback" data-bs-toggle="modal" data-bs-target="#modalFeedbackInbox" title="View user feedback" onclick="FeedbackInbox.load()">
+        <i class="fas fa-inbox me-1"></i>Inbox
+        <span id="feedback-unread-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:9px;"></span>
+      </button>
       <button class="btn btn-sm btn-warning d-none" id="btn-manage-users" data-bs-toggle="modal" data-bs-target="#modalManageUsers" title="Manage Supervisor Credentials (Admin)">
         <i class="fas fa-users-cog me-1"></i>Manage Users
       </button>
@@ -734,6 +738,26 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Reg.saveSupervisorToSystem()"><i class="fas fa-save me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: Feedback Inbox (Admin) ═══════════ -->
+<div class="modal fade" id="modalFeedbackInbox" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-inbox me-2 text-primary"></i>Feedback Inbox</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="feedback-inbox-list" style="min-height:120px;">
+          <div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>

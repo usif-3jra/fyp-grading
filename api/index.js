@@ -756,24 +756,65 @@ module.exports = async function handler(req, res) {
         const [sessionToken, message] = args;
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
-        const adminRows = await sql`SELECT email FROM supervisors WHERE supervisor_id = ${ADMIN_ID}`;
-        const adminEmail = (adminRows[0] && adminRows[0].email) ? adminRows[0].email : SENDER_EMAIL;
         const from = session.name || session.supervisor_id;
-        await sendEmail(
-          adminEmail,
-          `FYP System Feedback — from ${from}`,
-          `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;">
-            <h3 style="color:#1e3a5f;margin-top:0;border-bottom:2px solid #e5e7eb;padding-bottom:12px;">FYP System — User Feedback</h3>
-            <p><strong>From:</strong> ${from}</p>
-            <p><strong>ID:</strong> ${session.supervisor_id}</p>
-            <p><strong>Program:</strong> ${session.program || '—'}</p>
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
-            <p style="white-space:pre-wrap;line-height:1.7;color:#374151;">${String(message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
-            <p style="color:#9ca3af;font-size:12px;margin:0;">Sent automatically via the FYP Management System feedback form.</p>
-          </div>`
-        );
+        const ts   = new Date().toISOString();
+        // Always store in DB first so feedback is never lost
+        await sql`CREATE TABLE IF NOT EXISTS feedback (
+          id TEXT PRIMARY KEY, supervisor_id TEXT, supervisor_name TEXT,
+          program TEXT, message TEXT, submitted_at TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE
+        )`;
+        await sql`INSERT INTO feedback (id, supervisor_id, supervisor_name, program, message, submitted_at)
+                  VALUES (${uid('FB')}, ${session.supervisor_id}, ${from}, ${session.program || ''}, ${String(message || '')}, ${ts})`;
+        // Email notification — always to admin's personal email
+        try {
+          await sendEmail(
+            'yousef.ajrah@bau.edu.lb',
+            `FYP System Feedback — from ${from}`,
+            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;">
+              <h3 style="color:#1e3a5f;margin-top:0;border-bottom:2px solid #e5e7eb;padding-bottom:12px;">FYP System — User Feedback</h3>
+              <p><strong>From:</strong> ${from}</p>
+              <p><strong>ID:</strong> ${session.supervisor_id}</p>
+              <p><strong>Program:</strong> ${session.program || '—'}</p>
+              <p><strong>Submitted:</strong> ${new Date(ts).toLocaleString('en-GB')}</p>
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
+              <p style="white-space:pre-wrap;line-height:1.7;color:#374151;">${String(message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
+              <p style="color:#9ca3af;font-size:12px;margin:0;">Sent via the FYP Management System feedback form. All submissions are also stored in the system dashboard.</p>
+            </div>`
+          );
+        } catch { /* email failure doesn't affect the stored record */ }
         return ok({ success: true });
+      }
+
+      case 'getFeedbacks': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
+        await sql`CREATE TABLE IF NOT EXISTS feedback (
+          id TEXT PRIMARY KEY, supervisor_id TEXT, supervisor_name TEXT,
+          program TEXT, message TEXT, submitted_at TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE
+        )`;
+        const rows = await sql`SELECT * FROM feedback ORDER BY submitted_at DESC`;
+        await sql`UPDATE feedback SET is_read = TRUE WHERE is_read = FALSE`;
+        return ok({ success: true, feedbacks: rows.map(r => ({
+          id: r.id, supervisorId: r.supervisor_id, name: r.supervisor_name,
+          program: r.program, message: r.message,
+          submittedAt: r.submitted_at, isRead: r.is_read,
+        })) });
+      }
+
+      case 'getUnreadFeedbackCount': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ count: 0 });
+        try {
+          await sql`CREATE TABLE IF NOT EXISTS feedback (
+            id TEXT PRIMARY KEY, supervisor_id TEXT, supervisor_name TEXT,
+            program TEXT, message TEXT, submitted_at TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE
+          )`;
+          const rows = await sql`SELECT COUNT(*) AS cnt FROM feedback WHERE is_read = FALSE`;
+          return ok({ count: Number(rows[0]?.cnt || 0) });
+        } catch { return ok({ count: 0 }); }
       }
 
       // ─── Peer Evaluation ─────────────────────────────────────────────

@@ -255,6 +255,7 @@ const App = {
       TW.init(),
       Ex.loadProjects(),
     ]);
+    if (Auth.supervisor && Auth.supervisor.isAdmin) FeedbackInbox.checkUnread();
     document.querySelector('[data-bs-target="#tab-ex"]').addEventListener('shown.bs.tab', () => Ex.loadProjects());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('shown.bs.tab', () => TW.refreshProjectList());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('hide.bs.tab', () => TW.stopPolling());
@@ -2055,6 +2056,47 @@ const Res = {
       }
     } catch (e) { Toast.show('PDF error: ' + (e.message || e), 'error'); console.error(e); }
     finally { Spinner.hide(); }
+  },
+};
+
+// ── Feedback Inbox (admin) ────────────────────────────────────────────
+
+const FeedbackInbox = {
+  async load() {
+    const list = document.getElementById('feedback-inbox-list');
+    list.innerHTML = '<div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
+    try {
+      const res = await gsrAuth('getFeedbacks');
+      if (!res.success) { list.innerHTML = `<div class="text-danger p-4">${res.message}</div>`; return; }
+      const badge = document.getElementById('feedback-unread-badge');
+      if (badge) badge.classList.add('d-none');
+      if (!res.feedbacks.length) {
+        list.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-2x mb-3 d-block opacity-25"></i>No feedback received yet.</div>';
+        return;
+      }
+      list.innerHTML = res.feedbacks.map(f => `
+        <div class="border-bottom p-3 ${f.isRead ? '' : 'bg-light'}">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <div>
+              <span class="fw-semibold">${escHtml(f.name)}</span>
+              <span class="text-muted small ms-2">${escHtml(f.supervisorId)}</span>
+              ${f.program ? `<span class="badge bg-secondary ms-1" style="font-size:10px;">${escHtml(f.program)}</span>` : ''}
+            </div>
+            <span class="text-muted small text-nowrap ms-3">${new Date(f.submittedAt).toLocaleString('en-GB')}</span>
+          </div>
+          <p class="mb-0 small" style="white-space:pre-wrap;color:#374151;">${escHtml(f.message)}</p>
+        </div>`).join('');
+    } catch (e) { list.innerHTML = `<div class="text-danger p-4">Error: ${e.message}</div>`; }
+  },
+
+  async checkUnread() {
+    try {
+      const res = await gsrAuth('getUnreadFeedbackCount');
+      const badge = document.getElementById('feedback-unread-badge');
+      if (!badge) return;
+      if (res.count > 0) { badge.textContent = res.count; badge.classList.remove('d-none'); }
+      else badge.classList.add('d-none');
+    } catch { /* silent */ }
   },
 };
 
