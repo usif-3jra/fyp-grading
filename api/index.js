@@ -16,6 +16,57 @@ const LOCKOUT_MS        = 15 * 60 * 1000;
 const TOKEN_EXPIRY_DAYS = 30;
 const DEFAULT_PWD       = 'fyp2025';
 
+function buildExaminerEmail({ name, projectTitle, examinerType, projectType, reportLink, gradingLink }) {
+  const isIndustry = examinerType === 'Industry';
+  const ghost = 'display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;';
+
+  const roleNote = isIndustry
+    ? `<div style="background:#fff8e1;border-left:4px solid #f59e0b;border-radius:6px;padding:14px 18px;margin:0 0 20px;font-size:14px;color:#78350f;">
+         <strong>Note:</strong> You are assigned to grade the <strong>Presentation</strong> only. No report grading is required from you.
+       </div>`
+    : (reportLink
+        ? `<p style="margin:0 0 10px;font-size:14px;color:#374151;">The project report is available for your review:</p>
+           <table cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td>
+             <a href="${reportLink}" style="${ghost}">Access Project Report</a>
+           </td></tr></table>`
+        : '');
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;"><tr><td align="center" style="padding:32px 16px;">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+  <tr><td align="center" style="background:#ffffff;padding:28px 40px 16px;"><img src="https://usif-3jra.github.io/epme-study-plan/assets/logo_ECE.png" alt="BAU ECE" width="130" style="display:block;max-width:130px;height:auto;"/></td></tr>
+  <tr><td style="background:#0a1f44;padding:24px 40px;text-align:center;"><div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:.02em;margin-bottom:6px;">FYP Management &amp; Grading System</div><div style="color:#94a3b8;font-size:13px;">Beirut Arab University — Faculty of Engineering — ECE Department</div></td></tr>
+  <tr><td style="padding:32px 40px;color:#2d2d2d;font-size:15px;line-height:1.7;">
+    <p style="margin:0 0 16px;">Dear ${name || 'Examiner'},</p>
+    <p style="margin:0 0 20px;">You have been assigned as an examiner for a Final Year Project at Beirut Arab University. Please review your assignment details below:</p>
+    <div style="background:#f0f4ff;border-left:4px solid #0a1f44;border-radius:6px;padding:18px 24px;margin:0 0 20px;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;width:140px;">Project Title</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;">${projectTitle}</td></tr>
+        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Examiner Role</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${examinerType}</td></tr>
+        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Project Type</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${projectType || '—'}</td></tr>
+      </table>
+    </div>
+    ${roleNote}
+    <p style="margin:0 0 8px;font-size:14px;color:#374151;">Your grading portal has been prepared. Please use the button below to access it:</p>
+    <p style="margin:0 0 16px;font-size:12px;color:#6b7280;">This link is unique to you — do not share it with anyone.</p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 12px;"><tr><td><a href="${gradingLink}" style="${ghost}">Open Grading Portal</a></td></tr></table>
+    <p style="margin:0 0 12px;font-size:13px;color:#6b7280;">To access the FYP assessment rubrics, please use the button below:</p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td><a href="https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAaH-tzBurxrjb6gd-c6AvyU?e=K5B6xq" style="${ghost}">FYP 1 &amp; 2 Rubrics</a></td></tr></table>
+    <p style="margin:0 0 8px;font-size:14px;">Should you encounter any issues or have suggestions for improving the system, you are welcome to submit your feedback through the dashboard after logging in.</p>
+    <p style="margin:0 0 4px;">Best regards,</p>
+    <p style="margin:0 0 2px;font-weight:600;">ECE Department Administration</p>
+    <p style="margin:0;color:#6b7280;font-size:13px;">Faculty of Engineering — Beirut Arab University</p>
+  </td></tr>
+  <tr><td style="border-top:1px solid #e5e7eb;padding:16px 40px;text-align:center;color:#9ca3af;font-size:11px;background:#f9fafb;">
+    &copy; 2026 Beirut Arab University — Faculty of Engineering — ECE Department<br/>
+    This is an automated message. Please do not reply directly to this email.
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 async function sendEmail(to, subject, html) {
   const res = await fetch('https://send.api.mailtrap.io/api/send', {
     method: 'POST',
@@ -886,25 +937,21 @@ module.exports = async function handler(req, res) {
       case 'sendExaminerEmails': {
         const [sessionToken, projectId, assignments] = args;
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const projectRows = await sql`SELECT title FROM projects WHERE project_id = ${projectId}`;
+        const projectRows = await sql`SELECT title, type FROM projects WHERE project_id = ${projectId}`;
         const project = projectRows[0] || null;
-        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         await Promise.all((assignments || []).map(async a => {
           const link = `${APP_URL}/examiner.html?token=${a.token}`;
-          const reportBlock = a.reportLink ? `<p><strong>Project Report:</strong><br/><a href="${a.reportLink}">${a.reportLink}</a></p>` : '';
           await sendEmail(
             a.email,
-            `FYP Grading Assignment – ${project ? project.title : projectId}`,
-            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
-              <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
-              <p>Dear ${a.name || 'Examiner'},</p>
-              <p>You have been assigned to evaluate: <strong>${project ? project.title : projectId}</strong> (Role: ${a.type})</p>
-              ${reportBlock}
-              <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
-              <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
-              <p style="color:#666;font-size:12px;">This link is unique to you. Do not share it.</p>
-              <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
-            </div>`
+            `FYP Grading Assignment — ${project ? project.title : projectId}`,
+            buildExaminerEmail({
+              name:          a.name,
+              projectTitle:  project ? project.title : projectId,
+              examinerType:  a.type,
+              projectType:   project ? project.type : '',
+              reportLink:    a.type !== 'Industry' ? (a.reportLink || '') : '',
+              gradingLink:   link,
+            })
           );
           await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${a.assignmentId} AND status = 'Assigned'`;
         }));
@@ -940,25 +987,21 @@ module.exports = async function handler(req, res) {
       case 'resendExaminerEmail': {
         const [sessionToken, assignmentId] = args;
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const rows = await sql`SELECT e.*, p.title FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
+        const rows = await sql`SELECT e.*, p.title, p.type AS project_type FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
         const e = rows[0];
         if (!e) return ok({ success: false, message: 'Examiner not found.' });
-        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         const link = `${APP_URL}/examiner.html?token=${e.token}`;
-        const reportBlock = e.report_link ? `<p><strong>Project Report:</strong><br/><a href="${e.report_link}">${e.report_link}</a></p>` : '';
         await sendEmail(
           e.examiner_email,
-          `FYP Grading Assignment – ${e.title || assignmentId}`,
-          `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
-            <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
-            <p>Dear ${e.examiner_name || 'Examiner'},</p>
-            <p>You have been assigned to evaluate: <strong>${e.title || assignmentId}</strong> (Role: ${e.examiner_type})</p>
-            ${reportBlock}
-            <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
-            <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
-            <p style="color:#666;font-size:12px;">This link is unique to you. Do not share it.</p>
-            <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
-          </div>`
+          `FYP Grading Assignment — ${e.title || assignmentId}`,
+          buildExaminerEmail({
+            name:         e.examiner_name,
+            projectTitle: e.title || assignmentId,
+            examinerType: e.examiner_type,
+            projectType:  e.project_type || '',
+            reportLink:   e.examiner_type !== 'Industry' ? (e.report_link || '') : '',
+            gradingLink:  link,
+          })
         );
         await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${assignmentId} AND status = 'Assigned'`;
         return ok({ success: true });
