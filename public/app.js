@@ -1112,27 +1112,17 @@ const TW = {
 
     if (!indGrades.length) { Toast.show('No grades entered to save.', 'warning'); return; }
 
-    // Grade minimum check (45% of max)
-    const belowMin = [...document.querySelectorAll('.ind-grade')].filter(inp => {
-      const v = parseFloat(inp.value), m = parseFloat(inp.max);
-      return !isNaN(v) && v < m * 0.45;
-    });
-    if (belowMin.length) {
-      Toast.show(`${belowMin.length} grade(s) below 45% minimum. Please correct before saving.`, 'warning');
-      belowMin.forEach(inp => inp.style.outline = '2px solid #f59e0b');
-      return;
-    }
-
     const btn = document.getElementById('btn-tw-save-draft');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving…'; }
+    const label = '<i class="fas fa-save me-2"></i>Save Grades';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;border-width:.15em;vertical-align:-.125em;"></span>'; }
     try {
       const res = await gsrAuth('saveTeamworkDraft', pid, indGrades);
       if (!res.success) throw new Error(res.message);
-      Toast.show('Draft saved successfully.');
+      Toast.show('Grades saved. You can return and edit them until the grading period closes.');
       await this.loadSavedGrades(pid);
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save me-2"></i>Save Draft'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = label; }
     }
   },
 
