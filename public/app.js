@@ -1291,8 +1291,17 @@ const Ex = {
   _onIntProgChange(progSel) {
     const row    = progSel.closest('.ex-row');
     const supSel = row.querySelector('.ex-int-sup');
-    const selfId = Auth.supervisor && Auth.supervisor.id;
-    const sups   = this.allSupsCache.filter(s => s.program === progSel.value && s.id !== selfId);
+
+    // Block the logged-in supervisor AND all co-supervisors of the selected project
+    const selfId     = Auth.supervisor && Auth.supervisor.id;
+    const pid        = document.getElementById('ex-project-sel').value;
+    const project    = this.allProjects.find(p => p.ProjectID === pid);
+    const projSupIds = project
+      ? (project.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+    const blocked = new Set([selfId, ...projSupIds].filter(Boolean));
+
+    const sups = this.allSupsCache.filter(s => s.program === progSel.value && !blocked.has(s.id));
     supSel.innerHTML = '<option value="">Select supervisor…</option>' +
       sups.map(s => `<option value="${s.id}" data-email="${s.email}" data-name="${s.name}">${s.name}</option>`).join('');
   },
@@ -1330,9 +1339,26 @@ const Ex = {
     const examiners = this._gatherExaminers();
     if (!examiners.length) { Toast.show('Add at least one complete examiner row.', 'warning'); return; }
 
-    const selfEmail = Auth.supervisor && Auth.supervisor.email ? Auth.supervisor.email.toLowerCase() : '';
-    if (selfEmail && examiners.some(e => e.email.toLowerCase() === selfEmail)) {
-      Toast.show('You cannot assign yourself as an examiner.', 'error'); return;
+    // Block all supervisors of this project (self + co-supervisors) from being assigned as examiners
+    const project    = this.allProjects.find(p => p.ProjectID === pid);
+    const projSupIds = project
+      ? (project.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+    const projSupEmails = new Map(
+      this.allSupsCache
+        .filter(s => projSupIds.includes(s.id) || (Auth.supervisor && s.id === Auth.supervisor.id))
+        .map(s => [s.email.toLowerCase(), s.name])
+    );
+    const blocked = examiners.find(e => projSupEmails.has(e.email.toLowerCase()));
+    if (blocked) {
+      const isSelf = Auth.supervisor && blocked.email.toLowerCase() === Auth.supervisor.email.toLowerCase();
+      Toast.show(
+        isSelf
+          ? 'You cannot assign yourself as an examiner.'
+          : `"${projSupEmails.get(blocked.email.toLowerCase())}" is already a supervisor of this project and cannot be assigned as an examiner.`,
+        'error'
+      );
+      return;
     }
 
     const hasInternal = examiners.some(e => e.type === 'Inside University' || e.type === 'Outside the Program/University');

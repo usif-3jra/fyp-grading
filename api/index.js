@@ -477,34 +477,58 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
 
+        const payloadStudents = (payload.students || []);
+
+        // Within-payload duplicate check — catch duplicates before any DB write
+        const seenIds   = new Set();
+        const seenNames = new Set();
+        for (const s of payloadStudents) {
+          if (seenIds.has(s.id))
+            return ok({ success: false, message: `Duplicate Student ID "${s.id}" — each student must have a unique ID.` });
+          seenIds.add(s.id);
+          const normName = s.name.toLowerCase().trim();
+          if (seenNames.has(normName))
+            return ok({ success: false, message: `Duplicate Student name "${s.name}" — each student must have a unique name.` });
+          seenNames.add(normName);
+        }
+
         const existingProjects = await sql`SELECT title FROM projects`;
         if (existingProjects.some(r => r.title.trim().toLowerCase() === (payload.title || '').trim().toLowerCase()))
           return ok({ success: false, message: `A project titled "${payload.title}" already exists. Please use a unique title.` });
 
         const allStudents = await sql`SELECT student_id, student_name FROM students`;
-        for (const s of (payload.students || [])) {
+        for (const s of payloadStudents) {
           if (allStudents.some(r => r.student_name.toLowerCase().trim() === s.name.toLowerCase().trim()))
-            return ok({ success: false, message: `Student name "${s.name}" already exists.` });
+            return ok({ success: false, message: `Student name "${s.name}" is already registered in another project.` });
           if (allStudents.some(r => r.student_id === s.id))
-            return ok({ success: false, message: `Student ID "${s.id}" already exists.` });
+            return ok({ success: false, message: `Student ID "${s.id}" is already registered in another project.` });
         }
 
         const idFmt = /^20\d{7}$/;
-        for (const s of (payload.students || [])) {
+        for (const s of payloadStudents) {
           if (!idFmt.test(s.id)) return ok({ success: false, message: `Invalid Student ID "${s.id}" — must be exactly 9 digits starting with 20.` });
         }
         const supIds = (payload.supervisors || []).map(s => s.id);
         if (new Set(supIds).size !== supIds.length) return ok({ success: false, message: 'Duplicate supervisors are not allowed.' });
-        if (!payload.disableNotifications && !(payload.students || []).some(s => s.email && s.email.trim()))
+        if (!payload.disableNotifications && !payloadStudents.some(s => s.email && s.email.trim()))
           return ok({ success: false, message: 'At least one student email is required when notifications are enabled.' });
 
-        const projectId  = uid('PRJ');
-        const studentIds = [];
-        for (const s of (payload.students || [])) {
-          await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.id}, ${s.name}, ${s.email || ''}, ${projectId})`;
-          studentIds.push(s.id);
+        // All validation passed — insert atomically; roll back students if project insert fails
+        const projectId        = uid('PRJ');
+        const insertedStudentIds = [];
+        try {
+          for (const s of payloadStudents) {
+            await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.id}, ${s.name}, ${s.email || ''}, ${projectId})`;
+            insertedStudentIds.push(s.id);
+          }
+          await sql`INSERT INTO projects (project_id, title, type, semester, year, end_date, program_type, supervisors, students, disable_notifications) VALUES (${projectId}, ${payload.title}, ${payload.type}, ${payload.semester}, ${payload.year}, ${payload.endDate || ''}, ${payload.programType || ''}, ${supIds.join(',')}, ${insertedStudentIds.join(',')}, ${!!payload.disableNotifications})`;
+        } catch (insertErr) {
+          // Remove every student inserted in this attempt so the DB stays clean
+          for (const sid of insertedStudentIds) {
+            await sql`DELETE FROM students WHERE student_id = ${sid}`.catch(() => {});
+          }
+          return ok({ success: false, message: 'Registration failed due to a database error — no data was saved. Please correct the information and try again.' });
         }
-        await sql`INSERT INTO projects (project_id, title, type, semester, year, end_date, program_type, supervisors, students, disable_notifications) VALUES (${projectId}, ${payload.title}, ${payload.type}, ${payload.semester}, ${payload.year}, ${payload.endDate || ''}, ${payload.programType || ''}, ${supIds.join(',')}, ${studentIds.join(',')}, ${!!payload.disableNotifications})`;
         return ok({ success: true, projectId });
       }
 
@@ -556,13 +580,13 @@ module.exports = async function handler(req, res) {
         if (!session) return ok([]);
         let data;
         if (session.is_admin) {
-          data = await sql`SELECT project_id, title, type FROM projects ORDER BY title`;
+          data = await sql`SELECT project_id, title, type, supervisors FROM projects ORDER BY title`;
         } else {
           const needle = session.supervisor_id.trim().toLowerCase();
           const all = await sql`SELECT project_id, title, type, supervisors FROM projects ORDER BY title`;
           data = all.filter(p => (p.supervisors || '').split(',').map(x => x.trim().toLowerCase()).includes(needle));
         }
-        return ok(data.map(r => ({ ProjectID: r.project_id, Title: r.title, Type: r.type })));
+        return ok(data.map(r => ({ ProjectID: r.project_id, Title: r.title, Type: r.type, Supervisors: r.supervisors || '' })));
       }
 
       case 'getSupervisedProjectsForGrading': {
@@ -942,11 +966,19 @@ module.exports = async function handler(req, res) {
         const link = String(reportLink || '');
         if (link && !link.startsWith('https://')) return ok({ success: false, message: 'Report link must use HTTPS.' });
 
-        // Prevent supervisor from assigning themselves as an examiner
-        const selfSupRow = await sql`SELECT email FROM supervisors WHERE supervisor_id = ${session.supervisor_id}`;
-        const selfEmail  = selfSupRow[0] ? String(selfSupRow[0].email).toLowerCase() : '';
-        if (selfEmail && (examiners || []).some(e => String(e.email).toLowerCase() === selfEmail))
-          return ok({ success: false, message: 'You cannot assign yourself as an examiner.' });
+        // Prevent any supervisor of this project from being assigned as an examiner
+        const projRow = await sql`SELECT supervisors FROM projects WHERE project_id = ${projectId}`;
+        const projSupIds = (projRow[0] ? projRow[0].supervisors || '' : '').split(',').map(x => x.trim()).filter(Boolean);
+        if (projSupIds.length) {
+          const projSupRows = await sql`SELECT supervisor_id, name, email FROM supervisors WHERE supervisor_id = ANY(${projSupIds})`;
+          const projSupEmails = new Map(projSupRows.map(r => [String(r.email).toLowerCase(), r.name || r.supervisor_id]));
+          const blocked = (examiners || []).find(e => projSupEmails.has(String(e.email).toLowerCase()));
+          if (blocked) {
+            const name = projSupEmails.get(String(blocked.email).toLowerCase());
+            const isSelf = String(blocked.email).toLowerCase() === (projSupRows.find(r => r.supervisor_id === session.supervisor_id) || {}).email?.toLowerCase();
+            return ok({ success: false, message: isSelf ? 'You cannot assign yourself as an examiner.' : `"${name}" is already a supervisor of this project and cannot be assigned as an examiner.` });
+          }
+        }
 
         // Require at least one non-Industry examiner to ensure the Report is graded
         const hasInternal = (examiners || []).some(e => e.type === 'Inside University' || e.type === 'Outside the Program/University');
@@ -1535,6 +1567,18 @@ module.exports = async function handler(req, res) {
           const toUpdate = submitted.filter(s => s.isExisting);
 
           if (toInsert.length) {
+            // Within-batch duplicate check before any write
+            const newIds   = new Set();
+            const newNames = new Set();
+            for (const s of toInsert) {
+              if (newIds.has(s.studentId))
+                return ok({ success: false, message: `Duplicate Student ID "${s.studentId}" in the submitted list.` });
+              newIds.add(s.studentId);
+              const norm = s.studentName.toLowerCase().trim();
+              if (newNames.has(norm))
+                return ok({ success: false, message: `Duplicate Student name "${s.studentName}" in the submitted list.` });
+              newNames.add(norm);
+            }
             const otherStudents = await sql`SELECT student_id, student_name FROM students WHERE project_id != ${projectId}`;
             for (const s of toInsert) {
               if (otherStudents.some(r => r.student_id === s.studentId))
@@ -1554,8 +1598,17 @@ module.exports = async function handler(req, res) {
           for (const s of toUpdate) {
             await sql`UPDATE students SET student_name = ${s.studentName}, email = ${s.email || ''} WHERE student_id = ${s.studentId}`;
           }
-          for (const s of toInsert) {
-            await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.studentId}, ${s.studentName}, ${s.email || ''}, ${projectId})`;
+          const insertedNewIds = [];
+          try {
+            for (const s of toInsert) {
+              await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.studentId}, ${s.studentName}, ${s.email || ''}, ${projectId})`;
+              insertedNewIds.push(s.studentId);
+            }
+          } catch (insertErr) {
+            for (const sid of insertedNewIds) {
+              await sql`DELETE FROM students WHERE student_id = ${sid}`.catch(() => {});
+            }
+            return ok({ success: false, message: 'Failed to add new students due to a database error — no new students were saved. Please check the data and try again.' });
           }
           patch.students = submittedIds.join(',');
         }
