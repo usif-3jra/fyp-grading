@@ -1252,7 +1252,7 @@ const Ex = {
             <select class="form-select form-select-sm ex-int-prog"></select>
           </div>
           <div class="col-md-6">
-            <label class="form-label mb-1 small">Supervisor</label>
+            <label class="form-label mb-1 small">Examiner</label>
             <select class="form-select form-select-sm ex-int-sup"></select>
           </div>
         </div>
