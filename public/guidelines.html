@@ -881,80 +881,202 @@
     <h5 style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;"><i class="fas fa-award me-2"></i>ABET Outcomes — Mapping &amp; Computation</h5>
     <p style="font-size:13px;color:#374151;margin-bottom:18px;">Each rubric criterion (Teamwork, Report, or Presentation) can be tagged with one ABET outcome. The system computes attainment per outcome per FYP type by averaging the percentage of students who scored ≥ 70% of the criterion maximum across all criteria tagged with that outcome. <strong>An outcome is only shown in results and the PDF if at least one criterion is mapped to it for that FYP type</strong> — outcomes with no linked criteria are automatically hidden.</p>
 
-    <!-- Outcome table -->
-    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;">
+    <!-- Outcome mapping table -->
+    <div style="overflow-x:auto;margin-bottom:20px;">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px;">
       <thead>
         <tr style="background:var(--navy);color:#fff;">
-          <th style="padding:9px 14px;border-radius:8px 0 0 0;text-align:left;white-space:nowrap;">Outcome</th>
-          <th style="padding:9px 14px;text-align:left;">Mapped Criteria (Source)</th>
-          <th style="padding:9px 14px;border-radius:0 8px 0 0;text-align:center;white-space:nowrap;">FYP Type</th>
+          <th rowspan="2" style="padding:10px 12px;text-align:center;vertical-align:middle;border-right:1px solid rgba(255,255,255,.15);white-space:nowrap;">Outcome</th>
+          <th rowspan="2" style="padding:10px 12px;text-align:left;vertical-align:middle;border-right:1px solid rgba(255,255,255,.15);">Definition</th>
+          <th colspan="3" style="padding:10px 12px;text-align:center;border-right:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.25);">Mapped Criteria (Source)</th>
+          <th rowspan="2" style="padding:10px 12px;text-align:center;vertical-align:middle;white-space:nowrap;">FYP Type</th>
+        </tr>
+        <tr style="background:#2a4f80;color:#e0e7ff;">
+          <th style="padding:7px 10px;text-align:center;border-right:1px solid rgba(255,255,255,.15);font-size:11px;font-weight:700;width:14%;">Teamwork</th>
+          <th style="padding:7px 10px;text-align:center;border-right:1px solid rgba(255,255,255,.15);font-size:11px;font-weight:700;width:14%;">Report</th>
+          <th style="padding:7px 10px;text-align:center;border-right:1px solid rgba(255,255,255,.15);font-size:11px;font-weight:700;width:14%;">Presentation</th>
         </tr>
       </thead>
       <tbody>
+
+        <!-- shared pill styles as inline style shorthand -->
+        <!-- green pill = rpt, yellow = tw, dash = none -->
+
+        <!-- 2a -->
         <tr style="border-bottom:1px solid #e5e7eb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">4a</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Literature Review &nbsp;·&nbsp;
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Technical Depth
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">2a</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#e0e7ff;color:#3730a3;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Define the design system specifications and constraints. Explain the methodologies and available resources to achieve design intent.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div style="margin-bottom:4px;"><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Methodology</span></div>
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Technical &amp; Non-technical Constraints</span></div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;">
+            <div style="display:flex;flex-direction:column;gap:5px;align-items:center;">
+              <span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;">FYP1 &amp; FYP2</span>
+              <span style="background:#e0e7ff;color:#3730a3;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;">FYP2 only</span>
+            </div>
+          </td>
         </tr>
+
+        <!-- 2b -->
         <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">5a</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">TW Individual</span> Problem Definition &nbsp;·&nbsp;
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Methodology
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">2b</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Design decisions should consider safety, economic analysis, and environmental concerns.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Standards</span></div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span>
+          </td>
         </tr>
+
+        <!-- 4a -->
         <tr style="border-bottom:1px solid #e5e7eb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">5b</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Use of Tools &amp; Software &nbsp;·&nbsp;
-            <span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Presentation</span> Technical Tools
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">4a</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Apply engineering professional and ethical standards in dealing with a real engineering problem, considering the impact of social, environmental, and economic effects.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Ethical Considerations</span></div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span>
+          </td>
         </tr>
+
+        <!-- 5a -->
         <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">2a</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Experimental Design &nbsp;·&nbsp;
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Results &amp; Analysis
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">5a</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#e0e7ff;color:#3730a3;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Participate fully in a teamwork engineering project and contribute quality work. Develop teamwork plans and allocate resources and tasks.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div><span style="background:#fef9c3;color:#713f12;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">TW — PI.1</span></div>
+              <div><span style="background:#fef9c3;color:#713f12;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">TW — PI.2</span></div>
+              <div><span style="background:#fef9c3;color:#713f12;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">TW — PI.3</span></div>
+            </div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
+          </td>
         </tr>
+
+        <!-- 5b -->
         <tr style="border-bottom:1px solid #e5e7eb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">2b</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> System Design &nbsp;·&nbsp;
-            <span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Presentation</span> Design Justification
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">5b</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Communicate and function effectively in teamwork projects.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div><span style="background:#fef9c3;color:#713f12;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">TW — PI.4</span></div>
+              <div><span style="background:#fef9c3;color:#713f12;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">TW — PI.5</span></div>
+              <div><span style="background:#fef9c3;color:#713f12;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Peer Evaluation</span></div>
+            </div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
+          </td>
         </tr>
+
+        <!-- 7a -->
         <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">7a</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Report Structure &amp; Clarity &nbsp;·&nbsp;
-            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Report</span> Writing Quality
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">7a</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Demonstrate the ability to access and utilize information from multiple external sources, for validity and synthesizing information.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">List of Resources Needed</span></div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
+          </td>
         </tr>
+
+        <!-- 7b -->
         <tr style="background:#f9fafb;">
-          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">7b</span></td>
-          <td style="padding:9px 14px;color:#374151;">
-            <span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Presentation</span> Clarity of Presentation &nbsp;·&nbsp;
-            <span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;margin-right:4px;">Presentation</span> Q&amp;A Response
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">7b</span>
           </td>
-          <td style="padding:9px 14px;text-align:center;"><span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span></td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Use engineering up-to-date software and simulators and apply them to solve engineering problems.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Contribution</span></div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span>
+          </td>
         </tr>
+
       </tbody>
     </table>
-    <!-- Source legend -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
-      <span style="font-size:12px;color:#6b7280;font-weight:600;align-self:center;">Source legend:</span>
-      <span style="background:#fef9c3;color:#713f12;padding:2px 10px;border-radius:6px;font-size:11px;font-weight:600;">TW Individual</span>
-      <span style="background:#f0fdf4;color:#166534;padding:2px 10px;border-radius:6px;font-size:11px;font-weight:600;">Report</span>
-      <span style="background:#ede9fe;color:#5b21b6;padding:2px 10px;border-radius:6px;font-size:11px;font-weight:600;">Presentation</span>
+    </div>
+
+    <!-- PI Legend table -->
+    <div style="margin-bottom:20px;">
+      <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;"><i class="fas fa-list-ul me-1"></i>Performance Indicator (PI) Legend</p>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead>
+          <tr style="background:#334155;color:#fff;">
+            <th style="padding:8px 14px;text-align:center;width:80px;border-radius:8px 0 0 0;">Code</th>
+            <th style="padding:8px 14px;text-align:left;border-radius:0 8px 0 0;">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #e5e7eb;">
+            <td style="padding:8px 14px;text-align:center;"><span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">PI.1</span></td>
+            <td style="padding:8px 14px;color:#374151;">Goals Establishment</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+            <td style="padding:8px 14px;text-align:center;"><span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">PI.2</span></td>
+            <td style="padding:8px 14px;color:#374151;">Tasks are Planned by the Team</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e5e7eb;">
+            <td style="padding:8px 14px;text-align:center;"><span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">PI.3</span></td>
+            <td style="padding:8px 14px;color:#374151;">Objectives are Met with Participation of the Team</td>
+          </tr>
+          <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+            <td style="padding:8px 14px;text-align:center;"><span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">PI.4</span></td>
+            <td style="padding:8px 14px;color:#374151;">Function Effectively in a Team Work, Providing Leadership</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 14px;text-align:center;"><span style="background:#fef9c3;color:#713f12;padding:2px 8px;border-radius:5px;font-weight:700;font-size:11px;">PI.5</span></td>
+            <td style="padding:8px 14px;color:#374151;">Collaboration and Communication in an Inclusive Environment</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Attainment levels -->
