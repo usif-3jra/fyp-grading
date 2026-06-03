@@ -1362,7 +1362,7 @@ module.exports = async function handler(req, res) {
             const avg2 = cp.reduce((a, b) => a + b, 0) / cp.length;
             return { pct: rnd(avg2), level: avg2 < 60 ? 1 : avg2 < 70 ? 2 : avg2 < 85 ? 3 : 4 };
           }
-          abetByType[pt] = { abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet7a: computeABET2('7a'), abet7b: computeABET2('7b') };
+          abetByType[pt] = { abet4a: computeABET2('4a'), abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet7a: computeABET2('7a'), abet7b: computeABET2('7b') };
         });
 
         const now = new Date();
@@ -1517,6 +1517,7 @@ module.exports = async function handler(req, res) {
             return { pct: rnd(avg2), level: avg2<60?1:avg2<70?2:avg2<85?3:4 };
           }
           abetByType[pt] = {
+            abet4a: computeABET('4a'),
             abet5a: computeABET('5a'), abet5b: computeABET('5b'),
             abet2a: computeABET('2a'), abet2b: computeABET('2b'),
             abet7a: computeABET('7a'), abet7b: computeABET('7b'),

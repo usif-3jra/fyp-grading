@@ -728,7 +728,7 @@ const TW = {
     questions.forEach(q => {
       const row = document.createElement('div');
       row.className = 'peer-q-row';
-      const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o =>
+      const aOpts = ['','4a','5a','5b','2a','2b','7a','7b'].map(o =>
         `<option value="${o}" ${String(q.AbetOutcome||'') === o ? 'selected' : ''}>${o || 'None'}</option>`
       ).join('');
       row.innerHTML = `
@@ -745,7 +745,7 @@ const TW = {
     if (!Auth.supervisor || !Auth.supervisor.isAdmin) { Toast.show('Only admins can add questions.', 'warning'); return; }
     const row = document.createElement('div');
     row.className = 'peer-q-row';
-    const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
+    const aOpts = ['','4a','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
     row.innerHTML = `
       <input type="text"   class="form-control form-control-sm pq-text"   placeholder="Question text"/>
       <input type="number" class="form-control form-control-sm pq-max"    value="10" min="1" max="100" title="Max Grade"/>
@@ -1135,7 +1135,7 @@ const TW = {
     const dis = isAdmin ? '' : 'disabled';
     const ro  = isAdmin ? '' : 'readonly';
     c.innerHTML = (criteria || []).map(cr => {
-      const sel = ['','5a','5b','2a','2b','7a','7b'].map(o =>
+      const sel = ['','4a','5a','5b','2a','2b','7a','7b'].map(o =>
         `<option value="${o}" ${String(cr.abetOutcome||'') === o ? 'selected' : ''}>${o || 'None'}</option>`
       ).join('');
       return `<div class="tw-rubric-row">
@@ -1153,7 +1153,7 @@ const TW = {
     const c = document.getElementById(type === 'group' ? 'twGroupRubricList' : 'twIndivRubricList');
     const row = document.createElement('div');
     row.className = 'tw-rubric-row';
-    const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
+    const aOpts = ['','4a','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
     row.innerHTML = `
       <input type="text"   class="form-control form-control-sm tw-criterion" placeholder="Criterion name" style="flex:1;min-width:140px;"/>
       <input type="number" class="form-control form-control-sm tw-max"    value="25" min="1" max="1000" title="Max Grade" style="width:72px;"/>
@@ -1522,7 +1522,7 @@ const Ex = {
       const row   = document.createElement('div');
       row.className = 'rubric-row';
       const dis = isAdmin ? '' : 'disabled';
-      const abetOpts = ['','5a','5b','2a','2b','7a','7b'].map(o =>
+      const abetOpts = ['','4a','5a','5b','2a','2b','7a','7b'].map(o =>
         `<option value="${o}" ${abet === o ? 'selected' : ''}>${o || 'None'}</option>`
       ).join('');
       row.innerHTML = `
@@ -1549,7 +1549,7 @@ const Ex = {
     const c   = document.getElementById(id);
     const row = document.createElement('div');
     row.className = 'rubric-row';
-    const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
+    const aOpts = ['','4a','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
     row.innerHTML = `
       <select class="form-select form-select-sm rc-cat"><option>Report</option><option>Presentation</option></select>
       <input type="text"   class="form-control form-control-sm rc-name"   placeholder="Criterion name"/>
@@ -1746,14 +1746,15 @@ const Res = {
     const sdPct   = Math.min(100, (sd / 30) * 100);
     const m5pct   = ((5  / 30) * 100).toFixed(2);
     const m15pct  = ((15 / 30) * 100).toFixed(2);
-    const abetKeys   = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
-    const abetLabels = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
+    const abetKeys   = ['abet4a','abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
+    const abetLabels = { abet4a:'4a', abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
     const lvlColors  = ['','#fee2e2','#fef3c7','#dbeafe','#d1fae5'];
     const lvlLabels  = ['','Level 1','Level 2','Level 3','Level 4'];
+    // Only render outcomes that have criteria linked for this FYP type (null = not applicable)
     const abetRows   = abet
       ? abetKeys.map(k => {
           const v = abet[k];
-          if (!v) return '';
+          if (!v) return null;
           const bg  = lvlColors[v.level] || '#f3f4f6';
           const lbl = lvlLabels[v.level] || '—';
           return `<div class="d-flex align-items-center justify-content-between py-2 border-bottom" style="font-size:13px;">
@@ -1763,8 +1764,8 @@ const Res = {
               <span style="background:${bg};padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">${lbl}</span>
             </div>
           </div>`;
-        }).join('')
-      : '<p class="text-muted small mb-0">No ABET data.</p>';
+        }).filter(Boolean).join('')
+      : null;
     const ptBadge = pt === 'FYP1'
       ? '<span class="badge bg-primary px-3 py-2 fs-6">FYP1</span>'
       : '<span class="badge bg-success px-3 py-2 fs-6">FYP2</span>';
@@ -1810,10 +1811,10 @@ const Res = {
               <small class="text-muted">Accepted range: 5 – 15 | Scale: 0 – 30</small>
             </div>
           </div>
-          <div>
+          ${abetRows ? `<div>
             <h6 class="fw-bold mb-3"><i class="fas fa-graduation-cap me-2 text-primary"></i>ABET Outcomes (Aggregate)</h6>
             ${abetRows}
-          </div>
+          </div>` : ''}
         </div>
       </div>`;
   },
@@ -1845,8 +1846,8 @@ const Res = {
       const green  = [22, 163, 74];
       const dkBlue = [50, 90, 140];
       const lvlLbl = ['', 'Level 1 — Beginning', 'Level 2 — Developing', 'Level 3 — Accomplished', 'Level 4 — Exemplary'];
-      const abetKeys = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
-      const abetLbl  = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
+      const abetKeys = ['abet4a','abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
+      const abetLbl  = { abet4a:'4a', abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
       const meta = res.meta || {};
       const genDate = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
       const yr   = (meta.year || String(new Date().getFullYear())).replace('–','-');
@@ -1929,8 +1930,8 @@ const Res = {
           ys = doc.lastAutoTable.finalY + 6;
         }
         // ABET
-        const abetKeys2 = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
-        const abetLbl2  = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
+        const abetKeys2 = ['abet4a','abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
+        const abetLbl2  = { abet4a:'4a', abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
         const lvlLbl2   = ['','Level 1 — Beginning','Level 2 — Developing','Level 3 — Accomplished','Level 4 — Exemplary'];
         for (const fypType of ['FYP1','FYP2']) {
           const tAbet = res.abet && res.abet[fypType];
