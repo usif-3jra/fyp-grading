@@ -514,7 +514,8 @@
       <div class="step-num" style="background:var(--navy)">3</div>
       <div class="step-body">
         <h4>Set Up the Examiner Rubric</h4>
-        <p>Go to <strong>Assign Examiners → Grading Rubric</strong>. Add criteria for FYP1 and FYP2 separately for both Report and Presentation categories. Assign each criterion a max grade, weight, scope (Individual or Group), and ABET outcome.</p>
+        <p>Go to <strong>Assign Examiners → Grading Rubric</strong>. Add criteria for FYP1 and FYP2 separately for both Report and Presentation categories. Assign each criterion a max grade, weight, scope (Individual or Group), and an ABET outcome tag.</p>
+        <div class="tip"><i class="fas fa-info-circle me-1"></i>Each criterion can be linked to one ABET outcome (e.g. 5a, 4a). Outcomes appear in the results and PDF only for FYP types that have at least one criterion mapped to them — outcomes with no linked criteria are automatically hidden for that type.</div>
         <div class="warn"><i class="fas fa-exclamation-triangle me-1"></i>All criterion grades must be at least 45% of the maximum. The system enforces this automatically.</div>
       </div>
     </div>
@@ -875,19 +876,93 @@
     </div>
   </div>
 
-  <!-- ABET box -->
-  <div style="margin-top:24px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:18px 22px;">
-    <h5 style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:8px;"><i class="fas fa-award me-2"></i>ABET Outcomes Tracked</h5>
-    <p style="font-size:13px;color:#1e40af;margin-bottom:12px;">The system automatically computes ABET attainment levels based on criterion mappings configured in the rubrics.</p>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-      <span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">5a</span>
-      <span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">5b</span>
-      <span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">2a</span>
-      <span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">2b</span>
-      <span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">7a</span>
-      <span style="background:#dbeafe;color:#1e40af;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;">7b</span>
+  <!-- ABET section -->
+  <div style="margin-top:24px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:16px;padding:24px 28px;">
+    <h5 style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;"><i class="fas fa-award me-2"></i>ABET Outcomes — Mapping &amp; Computation</h5>
+    <p style="font-size:13px;color:#374151;margin-bottom:18px;">Each rubric criterion (Teamwork, Report, or Presentation) can be tagged with one ABET outcome. The system computes attainment per outcome per FYP type by averaging the percentage of students who scored ≥ 70% of the criterion maximum across all criteria tagged with that outcome. <strong>An outcome is only shown in results and the PDF if at least one criterion is mapped to it for that FYP type</strong> — outcomes with no linked criteria are automatically hidden.</p>
+
+    <!-- Outcome table -->
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;">
+      <thead>
+        <tr style="background:var(--navy);color:#fff;">
+          <th style="padding:9px 14px;border-radius:8px 0 0 0;text-align:left;">Outcome</th>
+          <th style="padding:9px 14px;text-align:left;">ABET Student Outcome</th>
+          <th style="padding:9px 14px;border-radius:0 8px 0 0;text-align:center;">Applicable to</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">4a</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to apply engineering knowledge to complex problems</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">5a</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to identify, formulate, and solve engineering problems</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">5b</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to use modern engineering tools and techniques</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">2a</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to design and conduct experiments and analyse data</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">2b</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to design a system, component, or process to meet requirements</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">7a</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to communicate effectively in written form (reports)</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+        <tr style="background:#f9fafb;">
+          <td style="padding:9px 14px;"><span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:12px;font-weight:700;font-size:12px;">7b</span></td>
+          <td style="padding:9px 14px;color:#374151;">Ability to communicate effectively through oral presentation</td>
+          <td style="padding:9px 14px;text-align:center;color:#6b7280;font-size:12px;">FYP1 / FYP2</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Attainment levels -->
+    <div style="margin-bottom:14px;">
+      <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">Attainment Levels (% of students scoring ≥ 70% on mapped criteria)</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div style="background:#fee2e2;border-radius:10px;padding:10px 14px;">
+          <div style="font-size:12px;font-weight:700;color:#991b1b;">Level 1 — Beginning</div>
+          <div style="font-size:11px;color:#7f1d1d;margin-top:2px;">Attainment &lt; 60%</div>
+        </div>
+        <div style="background:#fef3c7;border-radius:10px;padding:10px 14px;">
+          <div style="font-size:12px;font-weight:700;color:#92400e;">Level 2 — Developing</div>
+          <div style="font-size:11px;color:#78350f;margin-top:2px;">Attainment 60–69%</div>
+        </div>
+        <div style="background:#dbeafe;border-radius:10px;padding:10px 14px;">
+          <div style="font-size:12px;font-weight:700;color:#1e40af;">Level 3 — Accomplished</div>
+          <div style="font-size:11px;color:#1e3a8a;margin-top:2px;">Attainment 70–84%</div>
+        </div>
+        <div style="background:#d1fae5;border-radius:10px;padding:10px 14px;">
+          <div style="font-size:12px;font-weight:700;color:#166534;">Level 4 — Exemplary</div>
+          <div style="font-size:11px;color:#14532d;margin-top:2px;">Attainment ≥ 85%</div>
+        </div>
+      </div>
     </div>
-    <p style="font-size:12px;color:#3b82f6;margin-top:10px;">Attainment levels: Level 1 (&lt;60%) · Level 2 (60–69%) · Level 3 (70–84%) · Level 4 (≥85%)</p>
+
+    <!-- How to map -->
+    <div style="background:#fff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;">
+      <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:6px;"><i class="fas fa-sitemap me-1"></i>How to Map a Criterion to an ABET Outcome</p>
+      <ol style="font-size:13px;color:#374151;margin:0;padding-left:18px;line-height:1.8;">
+        <li>Go to <strong>Assign Examiners → Grading Rubric</strong> (for Report / Presentation criteria) or <strong>Teamwork → Rubric Config</strong> (for Individual criteria).</li>
+        <li>In each criterion row, find the <strong>ABET</strong> dropdown column.</li>
+        <li>Select the outcome tag (e.g. <code>5a</code>, <code>4a</code>) that this criterion assesses. Leave it blank if the criterion is not mapped to any outcome.</li>
+        <li>Save the rubric. The system will compute attainment for all mapped outcomes when final results are loaded.</li>
+      </ol>
+      <p style="font-size:12px;color:#6b7280;margin-top:8px;margin-bottom:0;"><i class="fas fa-info-circle me-1"></i>The same outcome can be tagged on multiple criteria — attainment is averaged across all of them. Outcomes not tagged on any criterion for a given FYP type are hidden from results and the PDF for that type.</p>
+    </div>
   </div>
 </div>
 
