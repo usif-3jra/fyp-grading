@@ -158,14 +158,15 @@
     }
 
     .grade-scale {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 10px; margin-top: 20px;
+      display: flex; flex-direction: row; flex-wrap: nowrap;
+      gap: 6px; margin-top: 20px; overflow-x: auto;
     }
     .grade-chip {
-      text-align: center; padding: 12px 8px; border-radius: 12px; font-weight: 700;
+      text-align: center; padding: 10px 6px; border-radius: 10px; font-weight: 700;
+      flex: 1; min-width: 52px;
     }
-    .grade-chip .letter { font-size: 22px; display: block; }
-    .grade-chip .range  { font-size: 11px; margin-top: 2px; opacity: .8; }
+    .grade-chip .letter { font-size: 18px; display: block; }
+    .grade-chip .range  { font-size: 10px; margin-top: 2px; opacity: .85; white-space: nowrap; }
 
     /* ── INFO CARDS ── */
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
@@ -796,17 +797,17 @@
 
   <h4 style="font-size:15px;font-weight:700;margin:32px 0 14px;color:var(--navy);"><i class="fas fa-graduation-cap me-2"></i>Letter Grade Scale</h4>
   <div class="grade-scale">
-    <div class="grade-chip" style="background:#166534;color:#fff;"><span class="letter">A+</span><span class="range">≥ 95</span></div>
-    <div class="grade-chip" style="background:#16a34a;color:#fff;"><span class="letter">A</span><span class="range">90 – 94</span></div>
-    <div class="grade-chip" style="background:#22c55e;color:#fff;"><span class="letter">A−</span><span class="range">86 – 89</span></div>
-    <div class="grade-chip" style="background:#3b82f6;color:#fff;"><span class="letter">B+</span><span class="range">83 – 85</span></div>
-    <div class="grade-chip" style="background:#2563eb;color:#fff;"><span class="letter">B</span><span class="range">80 – 82</span></div>
-    <div class="grade-chip" style="background:#1d4ed8;color:#fff;"><span class="letter">B−</span><span class="range">76 – 79</span></div>
-    <div class="grade-chip" style="background:#a855f7;color:#fff;"><span class="letter">C+</span><span class="range">73 – 75</span></div>
-    <div class="grade-chip" style="background:#9333ea;color:#fff;"><span class="letter">C</span><span class="range">70 – 72</span></div>
-    <div class="grade-chip" style="background:#7c3aed;color:#fff;"><span class="letter">C−</span><span class="range">65 – 69</span></div>
-    <div class="grade-chip" style="background:#f59e0b;color:#fff;"><span class="letter">D</span><span class="range">60 – 64</span></div>
     <div class="grade-chip" style="background:#dc2626;color:#fff;"><span class="letter">F</span><span class="range">&lt; 60</span></div>
+    <div class="grade-chip" style="background:#f59e0b;color:#fff;"><span class="letter">D</span><span class="range">60 – 64</span></div>
+    <div class="grade-chip" style="background:#7c3aed;color:#fff;"><span class="letter">C−</span><span class="range">65 – 69</span></div>
+    <div class="grade-chip" style="background:#9333ea;color:#fff;"><span class="letter">C</span><span class="range">70 – 72</span></div>
+    <div class="grade-chip" style="background:#a855f7;color:#fff;"><span class="letter">C+</span><span class="range">73 – 75</span></div>
+    <div class="grade-chip" style="background:#1d4ed8;color:#fff;"><span class="letter">B−</span><span class="range">76 – 79</span></div>
+    <div class="grade-chip" style="background:#2563eb;color:#fff;"><span class="letter">B</span><span class="range">80 – 82</span></div>
+    <div class="grade-chip" style="background:#3b82f6;color:#fff;"><span class="letter">B+</span><span class="range">83 – 85</span></div>
+    <div class="grade-chip" style="background:#22c55e;color:#fff;"><span class="letter">A−</span><span class="range">86 – 89</span></div>
+    <div class="grade-chip" style="background:#16a34a;color:#fff;"><span class="letter">A</span><span class="range">90 – 94</span></div>
+    <div class="grade-chip" style="background:#166534;color:#fff;"><span class="letter">A+</span><span class="range">≥ 95</span></div>
   </div>
   <p style="font-size:12px;color:var(--gray);margin-top:12px;"><i class="fas fa-info-circle me-1"></i>Border adjustments apply at exact boundary values (e.g., 64, 69, 72...) to avoid rounding ambiguity.</p>
 </div>
