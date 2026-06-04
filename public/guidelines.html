@@ -765,31 +765,85 @@
   <p class="section-sub">The final grade is computed from three components. Each component is expressed as a percentage (0–100).</p>
 
   <div class="grade-formula">
-    <div class="formula-row">
-      <div class="formula-pct" style="background:var(--blue)">35%</div>
-      <div class="formula-label">
-        <h4>Teamwork Score (TW)</h4>
-        <p>Supervisor individual assessment + peer evaluation by teammates</p>
+    <!-- Both charts centered, legends below each chart in one line -->
+    <div style="display:flex;justify-content:center;gap:60px;flex-wrap:wrap;margin-bottom:20px;">
+
+      <!-- LEFT: Final Grade donut + legend below -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <!-- viewBox: x from -25 to 70, y from -12 to 50. Connectors end close to ring; labels within 10 units of endpoints. -->
+        <svg viewBox="-25 -12 95 62" width="320" style="display:block;">
+          <circle cx="22" cy="22" r="15.92" fill="#f8fafc"/>
+          <circle cx="22" cy="22" r="15.92" fill="none" stroke="#3b82f6" stroke-width="8"
+            stroke-dasharray="34.5 65.5" stroke-dashoffset="0" transform="rotate(-90 22 22)"/>
+          <circle cx="22" cy="22" r="15.92" fill="none" stroke="#16a34a" stroke-width="8"
+            stroke-dasharray="34.5 65.5" stroke-dashoffset="-35" transform="rotate(-90 22 22)"/>
+          <circle cx="22" cy="22" r="15.92" fill="none" stroke="#f59e0b" stroke-width="8"
+            stroke-dasharray="29.5 70.5" stroke-dashoffset="-70" transform="rotate(-90 22 22)"/>
+          <text x="22" y="20.5" text-anchor="middle" fill="#1e3a5f" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">Final</text>
+          <text x="22" y="26.5" text-anchor="middle" fill="#1e3a5f" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">Grade</text>
+          <!-- TW @63° → right, short connector (bend ≈155°) -->
+          <polyline points="39.82,12.92 44,11 52,11" fill="none" stroke="#3b82f6" stroke-width="0.5"/>
+          <rect x="52" y="10.1" width="1.8" height="1.8" fill="#3b82f6"/>
+          <text x="55" y="12.5" text-anchor="start" fill="#374151" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">35%</text>
+          <!-- Report @189° → left, short connector (bend ≈120°) -->
+          <polyline points="18.87,41.76 17,45 5,45" fill="none" stroke="#16a34a" stroke-width="0.5"/>
+          <rect x="3.2" y="44.1" width="1.8" height="1.8" fill="#16a34a"/>
+          <text x="2" y="46.5" text-anchor="end" fill="#374151" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">35%</text>
+          <!-- Pres @306° → left, short connector (bend ≈150°) -->
+          <polyline points="5.82,10.24 2,8 -8,8" fill="none" stroke="#f59e0b" stroke-width="0.5"/>
+          <rect x="-9.8" y="7.1" width="1.8" height="1.8" fill="#f59e0b"/>
+          <text x="-11" y="9.5" text-anchor="end" fill="#374151" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">30%</text>
+        </svg>
+        <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#374151;display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:#3b82f6;border-radius:2px;display:inline-block;flex-shrink:0;"></span>TW</span>
+          <span style="font-size:12px;color:#374151;display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:#16a34a;border-radius:2px;display:inline-block;flex-shrink:0;"></span>Report</span>
+          <span style="font-size:12px;color:#374151;display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:#f59e0b;border-radius:2px;display:inline-block;flex-shrink:0;"></span>Presentation</span>
+        </div>
       </div>
-      <div class="formula-eq">TW = Individual × 80% + Peer Evaluation × 20%</div>
-    </div>
-    <div class="formula-row">
-      <div class="formula-pct" style="background:var(--teal)">35%</div>
-      <div class="formula-label">
-        <h4>Report Grade</h4>
-        <p>Weighted average of all internal and external examiner report scores</p>
+
+      <!-- RIGHT: Grade Breakdown donut + legend below -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <svg viewBox="-25 -12 95 62" width="320" style="display:block;">
+          <circle cx="22" cy="22" r="15.92" fill="#f8fafc"/>
+          <circle cx="22" cy="22" r="15.92" fill="none" stroke="#3b82f6" stroke-width="8"
+            stroke-dasharray="42.5 57.5" stroke-dashoffset="0" transform="rotate(-90 22 22)"/>
+          <circle cx="22" cy="22" r="15.92" fill="none" stroke="#16a34a" stroke-width="8"
+            stroke-dasharray="49.5 50.5" stroke-dashoffset="-43" transform="rotate(-90 22 22)"/>
+          <circle cx="22" cy="22" r="15.92" fill="none" stroke="#f59e0b" stroke-width="8"
+            stroke-dasharray="6.5 93.5" stroke-dashoffset="-93" transform="rotate(-90 22 22)"/>
+          <text x="22" y="20.5" text-anchor="middle" fill="#1e3a5f" font-size="4" font-weight="700" font-family="Inter,sans-serif">Grade</text>
+          <text x="22" y="26.5" text-anchor="middle" fill="#1e3a5f" font-size="4" font-weight="700" font-family="Inter,sans-serif">Breakdown</text>
+          <!-- Individual @77.4° → right, short connector (bend ≈143°) -->
+          <polyline points="41.51,17.60 45,15 52,15" fill="none" stroke="#3b82f6" stroke-width="0.5"/>
+          <rect x="52" y="14.1" width="1.8" height="1.8" fill="#3b82f6"/>
+          <text x="55" y="16.5" text-anchor="start" fill="#374151" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">43%</text>
+          <!-- Per Group @244.8° → left, short connector (bend ≈163°) -->
+          <polyline points="3.88,30.50 -1,32 -8,32" fill="none" stroke="#16a34a" stroke-width="0.5"/>
+          <rect x="-9.8" y="31.1" width="1.8" height="1.8" fill="#16a34a"/>
+          <text x="-11" y="33.5" text-anchor="end" fill="#374151" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">50%</text>
+          <!-- Peer @347.4° → upper-left, short connector (bend ≈129°) -->
+          <polyline points="17.60,2.49 14,-2 6,-2" fill="none" stroke="#f59e0b" stroke-width="0.5"/>
+          <rect x="4.2" y="-2.9" width="1.8" height="1.8" fill="#f59e0b"/>
+          <text x="3" y="-0.5" text-anchor="end" fill="#374151" font-size="4.5" font-weight="700" font-family="Inter,sans-serif">7%</text>
+        </svg>
+        <div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#374151;display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:#3b82f6;border-radius:2px;display:inline-block;flex-shrink:0;"></span>Individual</span>
+          <span style="font-size:12px;color:#374151;display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:#16a34a;border-radius:2px;display:inline-block;flex-shrink:0;"></span>Per Group</span>
+          <span style="font-size:12px;color:#374151;display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;background:#f59e0b;border-radius:2px;display:inline-block;flex-shrink:0;"></span>Peer</span>
+        </div>
       </div>
-      <div class="formula-eq">Average of all Internal + External examiner grades (weighted by criterion)</div>
+
     </div>
-    <div class="formula-row">
-      <div class="formula-pct" style="background:var(--purple)">30%</div>
-      <div class="formula-label">
-        <h4>Presentation Grade</h4>
-        <p>Weighted average of all examiner presentation scores (all types included)</p>
-      </div>
-      <div class="formula-eq">Average of Internal + External + Industry examiner grades (weighted by criterion)</div>
-    </div>
-    <div style="margin-top:20px;padding:18px 20px;background:#f0f4ff;border-radius:12px;border-left:4px solid var(--blue);">
+
+    <!-- Formula list below charts -->
+    <ol style="font-size:13px;color:#374151;padding-left:20px;line-height:1.9;margin:0 0 20px 0;">
+      <li><strong style="color:#3b82f6;">TW</strong> = Individual × 80% + Peer Evaluation × 20%</li>
+      <li><strong style="color:#16a34a;">Report</strong> = Average of all Internal + External examiner grades (weighted by criterion)</li>
+      <li><strong style="color:#f59e0b;">Presentation</strong> = Average of Internal + External + Industry examiner grades (weighted by criterion)</li>
+    </ol>
+
+    <!-- Final Grade equation -->
+    <div style="padding:16px 20px;background:#f0f4ff;border-radius:12px;border-left:4px solid var(--blue);">
       <strong style="font-size:14px;color:var(--navy);">Final Grade</strong>
       <span style="margin-left:16px;font-size:14px;color:#374151;">= TW × 35% + Report × 35% + Presentation × 30%</span>
     </div>
