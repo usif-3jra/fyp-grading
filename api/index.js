@@ -192,15 +192,17 @@ module.exports = async function handler(req, res) {
     return wTotal > 0 ? wSum / wTotal : 0;
   }
 
+  const GRADE_BORDERS = [54, 59, 64, 69, 72, 75, 79, 82, 85, 89, 94];
+
   function letterGrade(score) {
-    const rounded  = Math.round(score * 10) / 10;
-    const borders  = [64, 69, 72, 75, 79, 82, 85, 89, 94];
-    const adjusted = borders.includes(Math.round(rounded)) ? rounded + 1 : rounded;
+    const rounded  = Math.round(score);
+    const adjusted = GRADE_BORDERS.includes(rounded) ? rounded + 1 : rounded;
     if (adjusted >= 95) return 'A+'; if (adjusted >= 90) return 'A';
     if (adjusted >= 86) return 'A-'; if (adjusted >= 83) return 'B+';
     if (adjusted >= 80) return 'B';  if (adjusted >= 76) return 'B-';
     if (adjusted >= 73) return 'C+'; if (adjusted >= 70) return 'C';
     if (adjusted >= 65) return 'C-'; if (adjusted >= 60) return 'D';
+    if (adjusted >= 55) return 'D-';
     return 'F';
   }
 
@@ -1041,7 +1043,7 @@ module.exports = async function handler(req, res) {
               studentId: sid, studentName: student.student_name,
               twDetails, indPct: rnd(indPct), peerPct: rnd(peerPct), twScore: rnd(twScore),
               repTable, presTable,
-              summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: rnd(final), letterGrade: letterGrade(final) },
+              summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: Math.round(final), boosted: GRADE_BORDERS.includes(Math.round(final)), letterGrade: letterGrade(final) },
             };
           });
 
@@ -1245,11 +1247,14 @@ module.exports = async function handler(req, res) {
           const presPct = weightedPct(presG.map(g => ({ Criterion: g.criterion, Score: g.score })), presCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
 
           const final = (twScore * twW) + (repPct * repW) + (presPct * presW);
+          const finalRounded = Math.round(final);
           return {
             studentId: student.student_id, studentName: student.student_name,
-            projectId: student.project_id, projectTitle: project ? project.title : '—', projectType: pt || '—',
+            projectId: student.project_id, projectTitle: project ? project.title : '—',
+            projectType: pt || '—', projectProgram: project ? (project.program_type || '') : '',
             teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct),
-            finalGrade: rnd(final), letterGrade: letterGrade(final),
+            finalGrade: finalRounded, boosted: GRADE_BORDERS.includes(finalRounded),
+            letterGrade: letterGrade(final),
           };
         });
 

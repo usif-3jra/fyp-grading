@@ -1493,6 +1493,7 @@ const Res = {
       this.allResults  = res.results;
       this.abetByType  = res.abetByType  || {};
       this.statsByType = res.statsByType || {};
+      this._populateProgramFilter();
       this.applyFilter();
 
       // Locked incomplete types (blocking warning)
@@ -1520,10 +1521,21 @@ const Res = {
   },
 
   applyFilter() {
-    const type = document.getElementById('res-filter-type').value;
-    const filtered = type ? this.allResults.filter(r => r.projectType === type) : this.allResults;
+    const type    = document.getElementById('res-filter-type').value;
+    const program = document.getElementById('res-filter-program').value;
+    let filtered = this.allResults;
+    if (type)    filtered = filtered.filter(r => r.projectType    === type);
+    if (program) filtered = filtered.filter(r => r.projectProgram === program);
     this._render(filtered);
     this._renderSummary(this.abetByType, this.statsByType);
+  },
+
+  _populateProgramFilter() {
+    const sel = document.getElementById('res-filter-program');
+    if (!sel) return;
+    const programs = [...new Set(this.allResults.map(r => r.projectProgram).filter(Boolean))].sort();
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Programs</option>' + programs.map(p => `<option${p === current ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
   },
 
   _showIncomplete(incompleteByType) {
@@ -1551,7 +1563,7 @@ const Res = {
       warn.classList.remove('d-none');
     }
     if (!this.allResults || !this.allResults.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-4">Grading incomplete — see warning above.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">Grading incomplete — see warning above.</td></tr>';
     }
   },
 
@@ -1580,11 +1592,14 @@ const Res = {
 
     const tbody = document.getElementById('tbResults');
     if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted py-5">No results available.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-5">No results available.</td></tr>';
       return;
     }
     tbody.innerHTML = data.map((r, i) => {
       const lc = r.letterGrade.replace('+', '-plus').replace(/-$/, '-minus');
+      const boostCell = r.boosted
+        ? `<td class="text-center"><span class="badge bg-warning text-dark" title="Grade boundary reached — auto-incremented by 1">+1 ↑</span></td>`
+        : `<td class="text-center text-muted">—</td>`;
       return `<tr>
         <td>${i + 1}</td>
         <td class="fw-medium">${escHtml(r.studentName)}</td>
@@ -1596,6 +1611,7 @@ const Res = {
         <td>${r.presPct}%</td>
         <td class="fw-bold">${r.finalGrade}%</td>
         <td class="text-center"><span class="grade-${escHtml(lc)} px-2 py-1 rounded">${escHtml(r.letterGrade)}</span></td>
+        ${boostCell}
       </tr>`;
     }).join('');
   },
@@ -1712,14 +1728,27 @@ const Res = {
       if (!res.success) { Toast.show(res.message || 'Failed to load data.', 'error'); return; }
       if (!res.projects || !res.projects.length) { Toast.show('No projects to export.', 'warning'); return; }
 
-      // Load university logo
+      // Apply program filter from UI
+      const selProgram = document.getElementById('res-filter-program');
+      const programFilter = selProgram ? selProgram.value : '';
+      let exportProjects = res.projects;
+      if (programFilter) exportProjects = exportProjects.filter(p => (p.program || '') === programFilter);
+      if (!exportProjects.length) { Toast.show('No projects for selected program.', 'warning'); return; }
+
+      // Load university logo (preserve aspect ratio)
+      const logoUrl = 'https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png';
       const loadImg = async url => {
         try {
-          const blob = await (await fetch(url)).blob();
-          return await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = () => r(null); fr.readAsDataURL(blob); });
+          return await new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => { const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').drawImage(img, 0, 0); resolve({ dataUrl: c.toDataURL('image/png'), w: img.width, h: img.height }); };
+            img.onerror = () => resolve(null);
+            img.src = url;
+          });
         } catch { return null; }
       };
-      const logo = await loadImg('https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png');
+      const logoData = await loadImg(logoUrl);
 
       const { jsPDF } = window.jspdf;
       const W = 210, margin = 14, cW = W - 2 * margin;
@@ -1739,10 +1768,15 @@ const Res = {
       const drawHdr = (doc, subtitle) => {
         doc.setFillColor(...navy);
         doc.rect(0, 0, W, 27, 'F');
-        if (logo) doc.addImage(logo, 'PNG', margin, 3, 21, 21);
+        if (logoData) {
+          const lw = 32, lh = lw * (logoData.h / logoData.w);
+          doc.addImage(logoData.dataUrl, 'PNG', margin, (27 - lh) / 2, lw, lh);
+        }
         doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');   doc.setFontSize(12.5);
-        doc.text(subtitle, W / 2, 10, { align: 'center' });
+        doc.setFont('helvetica', 'bold');
+        const subFontSz = subtitle.length > 80 ? 8 : subtitle.length > 60 ? 9.5 : subtitle.length > 45 ? 11 : 12.5;
+        doc.setFontSize(subFontSz);
+        doc.text(subtitle, W / 2, 10, { align: 'center', maxWidth: cW - 36 });
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
         doc.text(`Beirut Arab University  ·  Faculty of Engineering  ·  ${meta.department || 'ECE'} Department`, W / 2, 17, { align: 'center' });
         doc.text(`Academic Year ${meta.year || ''}${meta.semester ? '  ·  Semester: ' + meta.semester : ''}`, W / 2, 22.5, { align: 'center' });
@@ -1784,7 +1818,7 @@ const Res = {
 
       // ── Generate one PDF per FYP type ─────────────────────────────────────
       for (const fypType of ['FYP1', 'FYP2']) {
-        const typeProjects = res.projects.filter(p => p.type === fypType);
+        const typeProjects = exportProjects.filter(p => p.type === fypType);
         if (!typeProjects.length) continue;
 
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -1796,15 +1830,18 @@ const Res = {
           firstProj = false;
           let y = drawHdr(doc, `${fypType} — Assessment Report`);
 
-          // Project banner
+          // Project banner (auto-expand for long titles)
+          const titleLines = doc.splitTextToSize(proj.title, cW - 6);
+          const titleTrunc  = titleLines.slice(0, 2);
+          const bannerH     = titleTrunc.length > 1 ? 24 : 18;
           doc.setFillColor(235, 242, 255);
-          doc.roundedRect(margin, y, cW, 18, 2, 2, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...navy);
-          doc.text(proj.title, margin + 3, y + 7);
+          doc.roundedRect(margin, y, cW, bannerH, 2, 2, 'F');
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(titleTrunc.length > 1 ? 9 : 11); doc.setTextColor(...navy);
+          doc.text(titleTrunc, margin + 3, y + 6);
           doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
-          doc.text(`Type: ${proj.type}   ·   Program: ${proj.program}   ·   Supervisor(s): ${proj.supervisors.join(', ')}   ·   Generated: ${genDate}`, margin + 3, y + 14);
+          doc.text(`Type: ${proj.type}   ·   Program: ${proj.program}   ·   Supervisor(s): ${proj.supervisors.join(', ')}   ·   Generated: ${genDate}`, margin + 3, y + bannerH - 4);
           doc.setTextColor(0, 0, 0);
-          y += 21;
+          y += bannerH + 3;
 
           // Student roster
           y = sectionLabel(doc, y, 'Students Enrolled in this Project');
@@ -1858,8 +1895,9 @@ const Res = {
               headStyles: { fillColor: green, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
               bodyStyles: { fontSize: 9, fontStyle: 'bold', cellPadding: 2.5, halign: 'center' },
               columnStyles: { 0:{cellWidth:cW*0.2}, 1:{cellWidth:cW*0.2}, 2:{cellWidth:cW*0.2}, 3:{cellWidth:cW*0.2}, 4:{cellWidth:cW*0.2} },
-              head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Final Grade', 'Letter Grade']],
-              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, stu.summary.letterGrade]],
+              head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Final Grade', 'Boost', 'Letter Grade']],
+              columnStyles: { 0:{cellWidth:cW*0.18}, 1:{cellWidth:cW*0.18}, 2:{cellWidth:cW*0.18}, 3:{cellWidth:cW*0.18}, 4:{cellWidth:cW*0.1}, 5:{cellWidth:cW*0.18} },
+              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, stu.summary.boosted ? '+1 ↑' : '—', stu.summary.letterGrade]],
             });
           }
         }
