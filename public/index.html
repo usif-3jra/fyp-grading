@@ -51,7 +51,7 @@
          onmouseout="this.style.background='#f9fafb';this.style.borderColor='#e5e7eb';this.style.color='#6b7280';">
         <i class="fas fa-book-open"></i> User Guidelines
       </a>
-      <a href="/rubric.pdf" target="_blank"
+      <a href="https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf" target="_blank"
          style="font-size:13px;color:#6b7280;text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;transition:all .15s;"
          onmouseover="this.style.background='#fff7ed';this.style.borderColor='#fb923c';this.style.color='#c2410c';"
          onmouseout="this.style.background='#f9fafb';this.style.borderColor='#e5e7eb';this.style.color='#6b7280';">
@@ -530,7 +530,7 @@
             <option>FYP1</option>
             <option>FYP2</option>
           </select>
-          <select id="res-filter-program" class="form-select form-select-sm" style="width:auto;" onchange="Res.applyFilter()">
+          <select id="res-filter-program" class="form-select form-select-sm d-none" style="width:auto;" onchange="Res.applyFilter()">
             <option value="">All Programs</option>
           </select>
           <button class="btn btn-sm btn-primary" onclick="Res.load()"><i class="fas fa-sync me-1"></i>Load Results</button>
@@ -545,7 +545,7 @@
             <tr>
               <th>#</th><th>Student Name</th><th>Student ID</th><th>Project Title</th>
               <th>Type</th><th>Teamwork %</th><th>Report %</th><th>Presentation %</th>
-              <th>Final Grade</th><th>Letter Grade</th><th>Boost</th>
+              <th>Final Grade</th><th>Boost</th><th>Letter Grade</th>
             </tr>
           </thead>
           <tbody id="tbResults">

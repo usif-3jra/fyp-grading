@@ -216,8 +216,10 @@ const App = {
   _applyAdminMode(isAdmin) {
     const publishBtn = document.getElementById('btn-publish-settings');
     if (publishBtn)  publishBtn.classList.toggle('d-none', !isAdmin);
-    const manageBtn    = document.getElementById('btn-manage-users');
-    if (manageBtn)     manageBtn.classList.toggle('d-none', !isAdmin);
+    const manageBtn  = document.getElementById('btn-manage-users');
+    if (manageBtn)   manageBtn.classList.toggle('d-none', !isAdmin);
+    const progSel    = document.getElementById('res-filter-program');
+    if (progSel)     progSel.classList.toggle('d-none', !isAdmin);
 
 
     if (!isAdmin) {
@@ -1610,8 +1612,8 @@ const Res = {
         <td>${r.reportPct}%</td>
         <td>${r.presPct}%</td>
         <td class="fw-bold">${r.finalGrade}%</td>
-        <td class="text-center"><span class="grade-${escHtml(lc)} px-2 py-1 rounded">${escHtml(r.letterGrade)}</span></td>
         ${boostCell}
+        <td class="text-center"><span class="grade-${escHtml(lc)} px-2 py-1 rounded">${escHtml(r.letterGrade)}</span></td>
       </tr>`;
     }).join('');
   },

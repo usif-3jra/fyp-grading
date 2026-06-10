@@ -1151,52 +1151,58 @@ module.exports = async function handler(req, res) {
           if (missing.length) incompleteByType[key].push({ title: String(proj.title || pid), missing });
         });
 
-        // ── Program publish / unlock settings ────────────────────────────
-        let pubRows = [];
-        try {
-          await sql`CREATE TABLE IF NOT EXISTS program_publish_settings (
-            program_name TEXT PRIMARY KEY, unlocked_fyp1 BOOLEAN NOT NULL DEFAULT FALSE,
-            unlocked_fyp2 BOOLEAN NOT NULL DEFAULT FALSE, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          )`;
-          pubRows = await sql`SELECT * FROM program_publish_settings`;
-        } catch {}
-        const pubMap = {};
-        pubRows.forEach(r => { pubMap[r.program_name] = r; });
-        const isUnlocked = (type) => {
-          if (session.is_admin) return false;
-          const row = pubMap[programName];
-          if (!row) return false;
-          return type === 'FYP1' ? !!row.unlocked_fyp1 : !!row.unlocked_fyp2;
-        };
-
         // ── Determine showable projects ──────────────────────────────────
         const showableProjectIds   = new Set();
-        const partialPendingByType = {};
-        const completeTypes        = [];
+        let   partialPendingByType = {};
+        let   completeTypes        = [];
+        let   incompleteOut        = {};
 
-        ['FYP1', 'FYP2'].forEach(pt => {
-          const typeProjects   = projects.filter(p => String(p.type || 'FYP1') === pt);
-          const typeIncomplete = incompleteByType[pt] || [];
-          const allComplete    = typeIncomplete.length === 0;
+        if (session.is_admin) {
+          // Admin: show any individually-complete project, no type-level blocking
+          projects.forEach(p => { if (projectCompletion[p.project_id]) showableProjectIds.add(p.project_id); });
+          if (showableProjectIds.size === 0)
+            return ok({ success: false, incomplete: true, program: '', incompleteByType: {}, message: 'No project has complete grading yet.' });
+        } else {
+          // Non-admin: program publish / unlock settings gate per-type visibility
+          let pubRows = [];
+          try {
+            await sql`CREATE TABLE IF NOT EXISTS program_publish_settings (
+              program_name TEXT PRIMARY KEY, unlocked_fyp1 BOOLEAN NOT NULL DEFAULT FALSE,
+              unlocked_fyp2 BOOLEAN NOT NULL DEFAULT FALSE, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )`;
+            pubRows = await sql`SELECT * FROM program_publish_settings`;
+          } catch {}
+          const pubMap = {};
+          pubRows.forEach(r => { pubMap[r.program_name] = r; });
+          const isUnlocked = (type) => {
+            const row = pubMap[programName];
+            if (!row) return false;
+            return type === 'FYP1' ? !!row.unlocked_fyp1 : !!row.unlocked_fyp2;
+          };
 
-          if (allComplete) {
-            completeTypes.push(pt);
-            typeProjects.forEach(p => showableProjectIds.add(p.project_id));
-          } else if (isUnlocked(pt)) {
-            const individually = typeProjects.filter(p => projectCompletion[p.project_id]);
-            if (individually.length) {
-              individually.forEach(p => showableProjectIds.add(p.project_id));
-              partialPendingByType[pt] = typeIncomplete;
+          ['FYP1', 'FYP2'].forEach(pt => {
+            const typeProjects   = projects.filter(p => String(p.type || 'FYP1') === pt);
+            const typeIncomplete = incompleteByType[pt] || [];
+            const allComplete    = typeIncomplete.length === 0;
+            if (allComplete) {
+              completeTypes.push(pt);
+              typeProjects.forEach(p => showableProjectIds.add(p.project_id));
+            } else if (isUnlocked(pt)) {
+              const individually = typeProjects.filter(p => projectCompletion[p.project_id]);
+              if (individually.length) {
+                individually.forEach(p => showableProjectIds.add(p.project_id));
+                partialPendingByType[pt] = typeIncomplete;
+              }
             }
-          }
-        });
+          });
 
-        const incompleteOut = Object.fromEntries(
-          Object.entries(incompleteByType).filter(([t, v]) => v.length > 0 && !isUnlocked(t))
-        );
+          incompleteOut = Object.fromEntries(
+            Object.entries(incompleteByType).filter(([t, v]) => v.length > 0 && !isUnlocked(t))
+          );
 
-        if (showableProjectIds.size === 0)
-          return ok({ success: false, incomplete: true, program: programName, incompleteByType: { ...incompleteOut, ...Object.fromEntries(Object.entries(incompleteByType).filter(([,v]) => v.length > 0)) }, message: 'No project type is fully graded yet.' });
+          if (showableProjectIds.size === 0)
+            return ok({ success: false, incomplete: true, program: programName, incompleteByType: { ...incompleteOut, ...Object.fromEntries(Object.entries(incompleteByType).filter(([,v]) => v.length > 0)) }, message: 'No project type is fully graded yet.' });
+        }
 
         // ── Compute results for showable projects ────────────────────────
         const showableStudents = students.filter(s => showableProjectIds.has(s.project_id));
@@ -1285,7 +1291,7 @@ module.exports = async function handler(req, res) {
           statsByType[pt] = { count: gr.length, mean: rnd(mean), sd: rnd(sd) };
         });
 
-        return ok({ success: true, results, abetByType, statsByType, incompleteByType: incompleteOut, completeTypes, partialPendingByType, unlocked: { FYP1: isUnlocked('FYP1'), FYP2: isUnlocked('FYP2') } });
+        return ok({ success: true, results, abetByType, statsByType, incompleteByType: incompleteOut, completeTypes, partialPendingByType });
       }
 
       case 'getProgramPublishSettings': {
