@@ -77,6 +77,13 @@
       </div>
     </div>
     <div class="header-actions d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalFeedback" title="Send feedback or report an issue">
+        <i class="fas fa-comment-dots me-1"></i>Feedback
+      </button>
+      <button class="btn btn-sm btn-outline-light d-none position-relative" id="btn-view-feedback" data-bs-toggle="modal" data-bs-target="#modalFeedbackInbox" title="View user feedback" onclick="FeedbackInbox.load()">
+        <i class="fas fa-inbox me-1"></i>Inbox
+        <span id="feedback-unread-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:9px;"></span>
+      </button>
       <button class="btn btn-sm btn-success d-none" id="btn-publish-settings" data-bs-toggle="modal" data-bs-target="#modalPublishSettings" title="Grade Publishing Settings (Admin)" onclick="Publish.load()">
         <i class="fas fa-unlock-alt me-1"></i>Publish
       </button>
@@ -749,6 +756,53 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Reg.saveSupervisorToSystem()"><i class="fas fa-save me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: Feedback Inbox (Admin) ═══════════ -->
+<div class="modal fade" id="modalFeedbackInbox" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-inbox me-2 text-primary"></i>Feedback Inbox</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="feedback-inbox-list" style="min-height:120px;">
+          <div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: Feedback ═══════════ -->
+<div class="modal fade" id="modalFeedback" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-comment-dots me-2 text-primary"></i>Send Feedback / Report an Issue</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Share comments, suggestions, or report any issue with the FYP system. Your message will be sent directly to the admin.</p>
+        <div class="mb-3">
+          <label class="form-label fw-medium">Your Message <span class="text-danger">*</span></label>
+          <textarea id="feedback-message" class="form-control" rows="5" placeholder="Describe your issue or suggestion…"></textarea>
+        </div>
+        <div id="feedback-err" class="alert alert-danger py-2 d-none"></div>
+        <div id="feedback-ok" class="alert alert-success py-2 d-none"><i class="fas fa-check-circle me-1"></i>Your feedback has been sent. Thank you!</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-send-feedback" style="min-width:150px;" onclick="Feedback.send()">
+          <i class="fas fa-paper-plane me-1"></i>Send Feedback
+        </button>
       </div>
     </div>
   </div>

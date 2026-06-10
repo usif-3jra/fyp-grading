@@ -218,6 +218,8 @@ const App = {
     if (publishBtn)  publishBtn.classList.toggle('d-none', !isAdmin);
     const manageBtn  = document.getElementById('btn-manage-users');
     if (manageBtn)   manageBtn.classList.toggle('d-none', !isAdmin);
+    const inboxBtn   = document.getElementById('btn-view-feedback');
+    if (inboxBtn)    inboxBtn.classList.toggle('d-none', !isAdmin);
     const progSel    = document.getElementById('res-filter-program');
     if (progSel)     progSel.classList.toggle('d-none', !isAdmin);
 
@@ -259,6 +261,7 @@ const App = {
       TW.init(),
       Ex.loadProjects(),
     ]);
+    if (Auth.supervisor && Auth.supervisor.isAdmin) FeedbackInbox.checkUnread();
     document.querySelector('[data-bs-target="#tab-ex"]').addEventListener('shown.bs.tab', () => Ex.loadProjects());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('shown.bs.tab', () => TW.refreshProjectList());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('hide.bs.tab', () => TW.stopPolling());
@@ -933,6 +936,8 @@ const TW = {
         projects.map(p =>
           `<option value="${p.ProjectID}">${p.Title} (${p.Type})</option>`
         ).join('');
+      const area = document.getElementById('twGradingArea');
+      if (area) area.classList.add('d-none');
     } catch (e) {
       sel.innerHTML = `<option value="">— error loading projects —</option>`;
       if (notice) { notice.textContent = 'Error: ' + e.message; notice.classList.remove('d-none'); }
@@ -1770,15 +1775,19 @@ const Res = {
       const drawHdr = (doc, subtitle) => {
         doc.setFillColor(...navy);
         doc.rect(0, 0, W, 27, 'F');
+        let textX = W / 2, textMaxW = cW - 36;
         if (logoData) {
           const lw = 32, lh = lw * (logoData.h / logoData.w);
           doc.addImage(logoData.dataUrl, 'PNG', margin, (27 - lh) / 2, lw, lh);
+          const logoRight = margin + lw + 4;
+          textX = (logoRight + (W - margin)) / 2;
+          textMaxW = (W - margin) - logoRight;
         }
         doc.setTextColor(255, 255, 255);
         doc.setFont('helvetica', 'bold');
         const subFontSz = subtitle.length > 80 ? 8 : subtitle.length > 60 ? 9.5 : subtitle.length > 45 ? 11 : 12.5;
         doc.setFontSize(subFontSz);
-        doc.text(subtitle, W / 2, 10, { align: 'center', maxWidth: cW - 36 });
+        doc.text(subtitle, textX, 10, { align: 'center', maxWidth: textMaxW });
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
         doc.text(`Beirut Arab University  ·  Faculty of Engineering  ·  ${meta.department || 'ECE'} Department`, W / 2, 17, { align: 'center' });
         doc.text(`Academic Year ${meta.year || ''}${meta.semester ? '  ·  Semester: ' + meta.semester : ''}`, W / 2, 22.5, { align: 'center' });
@@ -1886,6 +1895,22 @@ const Res = {
             });
             y = doc.lastAutoTable.finalY + 3;
 
+            // Peer evaluation question breakdown
+            if (stu.peerDetails && stu.peerDetails.length) {
+              y = sectionLabel(doc, y, 'Peer Evaluation — Question Breakdown (Average of Peers)');
+              doc.autoTable({
+                startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+                headStyles: { fillColor: [80, 130, 180], textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8, halign: 'center' },
+                bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
+                footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+                columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: cW - 42 }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 15, halign: 'center' } },
+                head: [['#', 'Peer Evaluation Question', 'Avg Score', 'Max']],
+                body: stu.peerDetails.map(d => [d.num, d.question, d.avgScore, d.maxGrade]),
+                foot: [[{ content: 'Peer Evaluation Score', colSpan: 3, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, styles: { halign: 'center' } }]],
+              });
+              y = doc.lastAutoTable.finalY + 3;
+            }
+
             // Examiner tables
             y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report');
             y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation');
@@ -1923,6 +1948,56 @@ const Res = {
           });
           ys = doc.lastAutoTable.finalY + 10;
         }
+
+        // ── Grade Distribution Histogram ─────────────────────────────────────
+        const gradeOrder = ['A+','A','A-','B+','B','B-','C+','C','C-','D','D-','F'];
+        const gradeColors2 = {
+          'A+': [22,163,74], 'A': [22,163,74], 'A-': [22,163,74],
+          'B+': [37,99,235], 'B': [37,99,235], 'B-': [37,99,235],
+          'C+': [234,179,8], 'C': [234,179,8], 'C-': [234,179,8],
+          'D': [239,68,68], 'D-': [239,68,68], 'F': [127,29,29],
+        };
+        const gradeCounts = {};
+        gradeOrder.forEach(g => { gradeCounts[g] = 0; });
+        typeProjects.forEach(proj => proj.students.forEach(stu => {
+          const lg = stu.summary.letterGrade;
+          if (Object.prototype.hasOwnProperty.call(gradeCounts, lg)) gradeCounts[lg]++;
+        }));
+        const maxCount = Math.max(1, ...gradeOrder.map(g => gradeCounts[g]));
+        const chartH2  = 38, chartTop = ys + 8;
+        const barSlot  = cW / gradeOrder.length;
+        const barW2    = barSlot - 3;
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy);
+        doc.text('Grade Distribution', margin, ys + 4); ys += 8;
+        doc.setTextColor(0, 0, 0);
+
+        doc.setFillColor(248, 250, 252);
+        doc.rect(margin, chartTop, cW, chartH2 + 8, 'F');
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(margin, chartTop, cW, chartH2 + 8);
+
+        gradeOrder.forEach((grade, i) => {
+          const count = gradeCounts[grade];
+          const bx = margin + i * barSlot + 1.5;
+          const maxBarH = chartH2 - 4;
+          const [r2, g2, b2] = gradeColors2[grade];
+          if (count > 0) {
+            const barH2 = Math.max(3, (count / maxCount) * maxBarH);
+            const barY2 = chartTop + chartH2 - barH2;
+            doc.setFillColor(r2, g2, b2);
+            doc.rect(bx, barY2, barW2, barH2, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(50, 50, 50);
+            doc.text(String(count), bx + barW2 / 2, barY2 - 1, { align: 'center' });
+          } else {
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(180, 180, 180);
+            doc.text('N/A', bx + barW2 / 2, chartTop + chartH2 - 3, { align: 'center' });
+          }
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(50, 50, 50);
+          doc.text(grade, bx + barW2 / 2, chartTop + chartH2 + 6, { align: 'center' });
+        });
+
+        ys = chartTop + chartH2 + 14;
 
         const tAbet = res.abet[fypType];
         if (tAbet) {
@@ -2086,6 +2161,77 @@ const Publish = {
       if (entry) entry[type === 'FYP1' ? 'unlocked_fyp1' : 'unlocked_fyp2'] = checked;
       Toast.show(`${programName} — ${type} ${checked ? 'unlocked' : 'locked'}.`);
     } catch (e) { Toast.show(e.message || e, 'error'); await this.load(); }
+  },
+};
+
+// ── Feedback Inbox (Admin) ────────────────────────────────────────────
+
+const FeedbackInbox = {
+  async load() {
+    const list = document.getElementById('feedback-inbox-list');
+    list.innerHTML = '<div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
+    try {
+      const res = await gsrAuth('getFeedbacks');
+      if (!res.success) { list.innerHTML = `<div class="text-danger p-4">${res.message}</div>`; return; }
+      const badge = document.getElementById('feedback-unread-badge');
+      if (badge) badge.classList.add('d-none');
+      if (!res.feedbacks.length) {
+        list.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-inbox fa-2x mb-3 d-block opacity-25"></i>No feedback received yet.</div>';
+        return;
+      }
+      list.innerHTML = res.feedbacks.map(f => `
+        <div class="border-bottom p-3 ${f.isRead ? '' : 'bg-light'}">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <div>
+              <span class="fw-semibold">${escHtml(f.name)}</span>
+              <span class="text-muted small ms-2">${escHtml(f.supervisorId)}</span>
+              ${f.program ? `<span class="badge bg-secondary ms-1" style="font-size:10px;">${escHtml(f.program)}</span>` : ''}
+            </div>
+            <span class="text-muted small text-nowrap ms-3">${new Date(f.submittedAt).toLocaleString('en-GB')}</span>
+          </div>
+          <p class="mb-0 small" style="white-space:pre-wrap;color:#374151;">${escHtml(f.message)}</p>
+        </div>`).join('');
+    } catch (e) { list.innerHTML = `<div class="text-danger p-4">Error: ${e.message}</div>`; }
+  },
+
+  async checkUnread() {
+    try {
+      const res = await gsrAuth('getUnreadFeedbackCount');
+      const badge = document.getElementById('feedback-unread-badge');
+      if (!badge) return;
+      if (res.count > 0) { badge.textContent = res.count; badge.classList.remove('d-none'); }
+      else badge.classList.add('d-none');
+    } catch { /* silent */ }
+  },
+};
+
+// ── Feedback ──────────────────────────────────────────────────────────
+
+const Feedback = {
+  async send() {
+    const msg = (document.getElementById('feedback-message').value || '').trim();
+    const errEl = document.getElementById('feedback-err');
+    const okEl  = document.getElementById('feedback-ok');
+    errEl.classList.add('d-none');
+    okEl.classList.add('d-none');
+    if (!msg) { errEl.textContent = 'Please enter a message before sending.'; errEl.classList.remove('d-none'); return; }
+
+    const btn = document.getElementById('btn-send-feedback');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;border-width:.15em;vertical-align:-.125em;"></span>';
+    try {
+      const res = await gsrAuth('submitFeedback', msg);
+      if (!res.success) throw new Error(res.message);
+      okEl.classList.remove('d-none');
+      document.getElementById('feedback-message').value = '';
+      btn.innerHTML = '<i class="fas fa-check me-1"></i>Sent!';
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Feedback'; }, 2500);
+    } catch (e) {
+      errEl.textContent = 'Error: ' + (e.message || e);
+      errEl.classList.remove('d-none');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Feedback';
+    }
   },
 };
 
