@@ -137,6 +137,16 @@ CREATE TABLE IF NOT EXISTS examiner_config (
   abet_outcome   TEXT NOT NULL DEFAULT ''
 );
 
+-- ── Program grade-publishing settings ───────────────────────────────────
+-- unlocked_fyp1/fyp2: when TRUE, supervisors see results per-project as
+-- soon as that project is fully graded (instead of waiting for all projects).
+CREATE TABLE IF NOT EXISTS program_publish_settings (
+  program_name  TEXT PRIMARY KEY,
+  unlocked_fyp1 BOOLEAN NOT NULL DEFAULT FALSE,
+  unlocked_fyp2 BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ════════════════════════════════════════════════════════════════════════
 -- SEED DATA — Run once to pre-populate defaults
 -- ════════════════════════════════════════════════════════════════════════

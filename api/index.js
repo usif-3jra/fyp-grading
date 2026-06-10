@@ -16,57 +16,6 @@ const LOCKOUT_MS        = 15 * 60 * 1000;
 const TOKEN_EXPIRY_DAYS = 30;
 const DEFAULT_PWD       = 'fyp2025';
 
-function buildExaminerEmail({ name, projectTitle, examinerType, projectType, reportLink, gradingLink }) {
-  const isIndustry = examinerType === 'Industry';
-  const ghost = 'display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;';
-
-  const roleNote = isIndustry
-    ? `<div style="background:#fff8e1;border-left:4px solid #f59e0b;border-radius:6px;padding:14px 18px;margin:0 0 20px;font-size:14px;color:#78350f;">
-         <strong>Note:</strong> You are assigned to grade the <strong>Presentation</strong> only. No report grading is required from you.
-       </div>`
-    : (reportLink
-        ? `<p style="margin:0 0 10px;font-size:14px;color:#374151;">The project report is available for your review:</p>
-           <table cellpadding="0" cellspacing="0" style="margin:0 0 20px;"><tr><td>
-             <a href="${reportLink}" style="${ghost}">Access Project Report</a>
-           </td></tr></table>`
-        : '');
-
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;"><tr><td align="center" style="padding:32px 16px;">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
-  <tr><td align="center" style="background:#ffffff;padding:28px 40px 16px;"><img src="https://usif-3jra.github.io/epme-study-plan/assets/logo_ECE.png" alt="BAU ECE" width="130" style="display:block;max-width:130px;height:auto;"/></td></tr>
-  <tr><td style="background:#0a1f44;padding:24px 40px;text-align:center;"><div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:.02em;margin-bottom:6px;">FYP Management &amp; Grading System</div><div style="color:#94a3b8;font-size:13px;">Beirut Arab University — Faculty of Engineering — ECE Department</div></td></tr>
-  <tr><td style="padding:32px 40px;color:#2d2d2d;font-size:15px;line-height:1.7;">
-    <p style="margin:0 0 16px;">Dear ${name || 'Examiner'},</p>
-    <p style="margin:0 0 20px;">You have been assigned as an examiner for a Final Year Project at Beirut Arab University. Please review your assignment details below:</p>
-    <div style="background:#f0f4ff;border-left:4px solid #0a1f44;border-radius:6px;padding:18px 24px;margin:0 0 20px;">
-      <table cellpadding="0" cellspacing="0" style="width:100%;">
-        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;width:140px;">Project Title</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;">${projectTitle}</td></tr>
-        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Examiner Role</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${examinerType}</td></tr>
-        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Project Type</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${projectType || '—'}</td></tr>
-      </table>
-    </div>
-    ${roleNote}
-    <p style="margin:0 0 8px;font-size:14px;color:#374151;">Your grading portal has been prepared. Please use the button below to access it:</p>
-    <p style="margin:0 0 16px;font-size:12px;color:#6b7280;">This link is unique to you — do not share it with anyone.</p>
-    <table cellpadding="0" cellspacing="0" style="margin:0 0 12px;"><tr><td><a href="${gradingLink}" style="${ghost}">Open Grading Portal</a></td></tr></table>
-    <p style="margin:0 0 12px;font-size:13px;color:#6b7280;">To access the FYP assessment rubrics, please use the button below:</p>
-    <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;"><tr><td><a href="https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf" style="${ghost}">FYP 1 &amp; 2 Rubrics</a></td></tr></table>
-    <p style="margin:0 0 8px;font-size:14px;">Should you encounter any issues or have suggestions for improving the system, you are welcome to submit your feedback through the dashboard after logging in.</p>
-    <p style="margin:0 0 4px;">Best regards,</p>
-    <p style="margin:0 0 2px;font-weight:600;">ECE Department Administration</p>
-    <p style="margin:0;color:#6b7280;font-size:13px;">Faculty of Engineering — Beirut Arab University</p>
-  </td></tr>
-  <tr><td style="border-top:1px solid #e5e7eb;padding:16px 40px;text-align:center;color:#9ca3af;font-size:11px;background:#f9fafb;">
-    &copy; 2026 Beirut Arab University — Faculty of Engineering — ECE Department<br/>
-    This is an automated message. Please do not reply directly to this email.
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
-}
-
 async function sendEmail(to, subject, html) {
   const res = await fetch('https://send.api.mailtrap.io/api/send', {
     method: 'POST',
@@ -414,43 +363,25 @@ module.exports = async function handler(req, res) {
             try {
               await sendEmail(
                 String(t.email),
-                'FYP Management & Grading System — Your Login Credentials',
-                `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;"><tr><td align="center" style="padding:32px 16px;">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
-  <tr><td align="center" style="background:#ffffff;padding:28px 40px 16px;"><img src="https://usif-3jra.github.io/epme-study-plan/assets/logo_ECE.png" alt="BAU ECE" width="130" style="display:block;max-width:130px;height:auto;"/></td></tr>
-  <tr><td style="background:#0a1f44;padding:24px 40px;text-align:center;"><div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:.02em;margin-bottom:6px;">FYP Management &amp; Grading System</div><div style="color:#94a3b8;font-size:13px;">Beirut Arab University — Faculty of Engineering — ECE Department</div></td></tr>
-  <tr><td style="padding:32px 40px;color:#2d2d2d;font-size:15px;line-height:1.7;">
-    <p style="margin:0 0 16px;">Dear ${t.name || t.id},</p>
-    <p style="margin:0 0 16px;">We are pleased to inform you that your account for the <strong>FYP Management &amp; Grading System</strong> has been successfully created.</p>
-    <p style="margin:0 0 20px;">Please find your login credentials below:</p>
-    <div style="background:#f0f4ff;border-left:4px solid #0a1f44;border-radius:6px;padding:18px 24px;margin:0 0 20px;">
-      <table cellpadding="0" cellspacing="0" style="width:100%;">
-        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;width:140px;">Supervisor ID</td><td style="font-size:15px;font-family:'Courier New',monospace;font-weight:700;color:#0a1f44;padding:5px 0;">${t.id}</td></tr>
-        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Password</td><td style="font-size:15px;font-family:'Courier New',monospace;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${t.password}</td></tr>
-      </table>
-    </div>
-    <p style="margin:0 0 20px;color:#6b7280;font-size:13px;">For security purposes, this password has been auto-generated by the system. You are strongly advised to change it upon your first login.</p>
-    <table cellpadding="0" cellspacing="0" style="margin:0 0 12px;">
-      <tr><td><a href="${APP_URL}" style="display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;">Open FYP Grading System</a></td></tr>
-    </table>
-    <p style="margin:0 0 12px;color:#6b7280;font-size:13px;">To access the FYP assessment rubrics, please use the button below:</p>
-    <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
-      <tr><td><a href="https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf" style="display:inline-block;background:#fff;color:#0a1f44;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;border:2px solid #0a1f44;">FYP 1 &amp; 2 Rubrics</a></td></tr>
-    </table>
-    <p style="margin:0 0 8px;">Should you encounter any issues or have suggestions for improving the system, you are welcome to submit your feedback directly through the <strong>Feedback</strong> button available on the dashboard after logging in.</p>
-    <p style="margin:0 0 4px;">Best regards,</p>
-    <p style="margin:0 0 2px;font-weight:600;">ECE Department Administration</p>
-    <p style="margin:0;color:#6b7280;font-size:13px;">Faculty of Engineering — Beirut Arab University</p>
-  </td></tr>
-  <tr><td style="border-top:1px solid #e5e7eb;padding:16px 40px;text-align:center;color:#9ca3af;font-size:11px;background:#f9fafb;">
-    &copy; 2026 Beirut Arab University — Faculty of Engineering — ECE Department<br/>
-    This is an automated message. Please do not reply directly to this email.
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`
+                'FYP Grading System — Your Login Credentials',
+                `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+                  <div style="background:#1e3a5f;padding:24px 28px;">
+                    <h2 style="color:#fff;margin:0;font-size:20px;">FYP Management &amp; Grading System</h2>
+                    <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">Beirut Arab University — Faculty of Engineering</p>
+                  </div>
+                  <div style="padding:24px 28px;">
+                    <p>Dear ${t.name || t.id},</p>
+                    <p>Your account credentials for the FYP Management System:</p>
+                    <table style="border-collapse:collapse;width:100%;margin:16px 0;border:1px solid #e5e7eb;">
+                      <tr style="background:#1e3a5f;color:#fff;"><th style="padding:10px 16px;text-align:left;">Field</th><th style="padding:10px 16px;text-align:left;">Value</th></tr>
+                      <tr><td style="padding:10px 16px;font-weight:600;">Supervisor ID</td><td style="padding:10px 16px;font-family:monospace;font-weight:700;">${t.id}</td></tr>
+                      <tr><td style="padding:10px 16px;font-weight:600;">Password</td><td style="padding:10px 16px;font-family:monospace;font-weight:700;">${t.password}</td></tr>
+                    </table>
+                    <div style="text-align:center;margin:24px 0;">
+                      <a href="${APP_URL}" style="display:inline-block;background:#2563eb;color:#fff;padding:13px 32px;text-decoration:none;border-radius:7px;font-weight:700;">Open FYP Grading System</a>
+                    </div>
+                  </div>
+                </div>`
               );
               sent.push(String(t.id));
             } catch { failed.push(String(t.id)); }
@@ -477,58 +408,34 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
 
-        const payloadStudents = (payload.students || []);
-
-        // Within-payload duplicate check — catch duplicates before any DB write
-        const seenIds   = new Set();
-        const seenNames = new Set();
-        for (const s of payloadStudents) {
-          if (seenIds.has(s.id))
-            return ok({ success: false, message: `Duplicate Student ID "${s.id}" — each student must have a unique ID.` });
-          seenIds.add(s.id);
-          const normName = s.name.toLowerCase().trim();
-          if (seenNames.has(normName))
-            return ok({ success: false, message: `Duplicate Student name "${s.name}" — each student must have a unique name.` });
-          seenNames.add(normName);
-        }
-
         const existingProjects = await sql`SELECT title FROM projects`;
         if (existingProjects.some(r => r.title.trim().toLowerCase() === (payload.title || '').trim().toLowerCase()))
           return ok({ success: false, message: `A project titled "${payload.title}" already exists. Please use a unique title.` });
 
         const allStudents = await sql`SELECT student_id, student_name FROM students`;
-        for (const s of payloadStudents) {
+        for (const s of (payload.students || [])) {
           if (allStudents.some(r => r.student_name.toLowerCase().trim() === s.name.toLowerCase().trim()))
-            return ok({ success: false, message: `Student name "${s.name}" is already registered in another project.` });
+            return ok({ success: false, message: `Student name "${s.name}" already exists.` });
           if (allStudents.some(r => r.student_id === s.id))
-            return ok({ success: false, message: `Student ID "${s.id}" is already registered in another project.` });
+            return ok({ success: false, message: `Student ID "${s.id}" already exists.` });
         }
 
         const idFmt = /^20\d{7}$/;
-        for (const s of payloadStudents) {
+        for (const s of (payload.students || [])) {
           if (!idFmt.test(s.id)) return ok({ success: false, message: `Invalid Student ID "${s.id}" — must be exactly 9 digits starting with 20.` });
         }
         const supIds = (payload.supervisors || []).map(s => s.id);
         if (new Set(supIds).size !== supIds.length) return ok({ success: false, message: 'Duplicate supervisors are not allowed.' });
-        if (!payload.disableNotifications && !payloadStudents.some(s => s.email && s.email.trim()))
+        if (!payload.disableNotifications && !(payload.students || []).some(s => s.email && s.email.trim()))
           return ok({ success: false, message: 'At least one student email is required when notifications are enabled.' });
 
-        // All validation passed — insert atomically; roll back students if project insert fails
-        const projectId        = uid('PRJ');
-        const insertedStudentIds = [];
-        try {
-          for (const s of payloadStudents) {
-            await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.id}, ${s.name}, ${s.email || ''}, ${projectId})`;
-            insertedStudentIds.push(s.id);
-          }
-          await sql`INSERT INTO projects (project_id, title, type, semester, year, end_date, program_type, supervisors, students, disable_notifications) VALUES (${projectId}, ${payload.title}, ${payload.type}, ${payload.semester}, ${payload.year}, ${payload.endDate || ''}, ${payload.programType || ''}, ${supIds.join(',')}, ${insertedStudentIds.join(',')}, ${!!payload.disableNotifications})`;
-        } catch (insertErr) {
-          // Remove every student inserted in this attempt so the DB stays clean
-          for (const sid of insertedStudentIds) {
-            await sql`DELETE FROM students WHERE student_id = ${sid}`.catch(() => {});
-          }
-          return ok({ success: false, message: 'Registration failed due to a database error — no data was saved. Please correct the information and try again.' });
+        const projectId  = uid('PRJ');
+        const studentIds = [];
+        for (const s of (payload.students || [])) {
+          await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.id}, ${s.name}, ${s.email || ''}, ${projectId})`;
+          studentIds.push(s.id);
         }
+        await sql`INSERT INTO projects (project_id, title, type, semester, year, end_date, program_type, supervisors, students, disable_notifications) VALUES (${projectId}, ${payload.title}, ${payload.type}, ${payload.semester}, ${payload.year}, ${payload.endDate || ''}, ${payload.programType || ''}, ${supIds.join(',')}, ${studentIds.join(',')}, ${!!payload.disableNotifications})`;
         return ok({ success: true, projectId });
       }
 
@@ -580,13 +487,13 @@ module.exports = async function handler(req, res) {
         if (!session) return ok([]);
         let data;
         if (session.is_admin) {
-          data = await sql`SELECT project_id, title, type, supervisors FROM projects ORDER BY title`;
+          data = await sql`SELECT project_id, title, type FROM projects ORDER BY title`;
         } else {
           const needle = session.supervisor_id.trim().toLowerCase();
           const all = await sql`SELECT project_id, title, type, supervisors FROM projects ORDER BY title`;
           data = all.filter(p => (p.supervisors || '').split(',').map(x => x.trim().toLowerCase()).includes(needle));
         }
-        return ok(data.map(r => ({ ProjectID: r.project_id, Title: r.title, Type: r.type, Supervisors: r.supervisors || '' })));
+        return ok(data.map(r => ({ ProjectID: r.project_id, Title: r.title, Type: r.type })));
       }
 
       case 'getSupervisedProjectsForGrading': {
@@ -637,44 +544,6 @@ module.exports = async function handler(req, res) {
         return ok({ success: true });
       }
 
-      case 'saveWeek14Date': {
-        const [sessionToken, date] = args;
-        const session = await verifySession(sessionToken);
-        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
-        await sql`INSERT INTO tw_config (config_key, config_value) VALUES ('week14_date', ${String(date || '')}) ON CONFLICT (config_key) DO UPDATE SET config_value = ${String(date || '')}`;
-        return ok({ success: true });
-      }
-
-      case 'setTWLock': {
-        const [sessionToken, locked] = args;
-        const session = await verifySession(sessionToken);
-        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
-        await sql`INSERT INTO tw_config (config_key, config_value) VALUES ('tw_locked', ${locked ? 'true' : 'false'}) ON CONFLICT (config_key) DO UPDATE SET config_value = ${locked ? 'true' : 'false'}`;
-        if (locked) {
-          const [allProjects, allStudents, existingGrades] = await Promise.all([
-            sql`SELECT * FROM projects`,
-            sql`SELECT * FROM students`,
-            sql`SELECT * FROM tw_grades WHERE grade_type = 'Individual'`,
-          ]);
-          const indRubric = await getIndividualRubric();
-          const ts = new Date().toISOString();
-          for (const proj of allProjects) {
-            const projStudents = allStudents.filter(s => s.project_id === proj.project_id);
-            const projGrades   = existingGrades.filter(g => g.project_id === proj.project_id);
-            for (const student of projStudents) {
-              for (const r of indRubric) {
-                const hasGrade = projGrades.some(g => g.student_id === student.student_id && g.criterion === r.criterion);
-                if (!hasGrade) {
-                  const minGrade = Math.round(Number(r.maxGrade || 25) * 0.45 * 10) / 10;
-                  await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${proj.project_id}, ${student.student_id}, ${r.criterion}, ${minGrade}, ${'system'}, ${'Individual'}, ${ts})`;
-                }
-              }
-            }
-          }
-        }
-        return ok({ success: true, locked: !!locked });
-      }
-
       case 'saveTWRubric': {
         const [sessionToken, type, criteria] = args;
         const session = await verifySession(sessionToken);
@@ -697,29 +566,6 @@ module.exports = async function handler(req, res) {
         const [sessionToken, projectId] = args;
         const session = await verifySession(sessionToken);
         if (!session) return ok([]);
-
-        const twCfgG = await getTWConfig();
-        const dateLocked = twCfgG.week14_date && (() => { const w = new Date(twCfgG.week14_date); w.setHours(23,59,59,999); return new Date() > w; })();
-        const isLockedG  = twCfgG.tw_locked === 'true' || dateLocked;
-
-        if (isLockedG) {
-          const [projStudents, existingG] = await Promise.all([
-            sql`SELECT * FROM students WHERE project_id = ${projectId}`,
-            sql`SELECT * FROM tw_grades WHERE project_id = ${projectId} AND grade_type = 'Individual'`,
-          ]);
-          const indRubric = await getIndividualRubric();
-          const ts = new Date().toISOString();
-          for (const student of projStudents) {
-            for (const r of indRubric) {
-              const hasGrade = existingG.some(g => g.student_id === student.student_id && g.criterion === r.criterion);
-              if (!hasGrade) {
-                const minGrade = Math.round(Number(r.maxGrade || 25) * 0.45 * 10) / 10;
-                await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${projectId}, ${student.student_id}, ${r.criterion}, ${minGrade}, ${'system'}, ${'Individual'}, ${ts})`;
-              }
-            }
-          }
-        }
-
         const rows = await sql`
           SELECT DISTINCT ON (g.student_id, g.criterion)
             g.student_id, g.criterion, g.grade, g.graded_by, s.name AS supervisor_name
@@ -732,7 +578,7 @@ module.exports = async function handler(req, res) {
           studentId:  r.student_id,
           criterion:  r.criterion,
           grade:      Number(r.grade),
-          gradedBy:   r.graded_by === 'system' ? 'Auto-filled (45% min)' : (r.supervisor_name || r.graded_by),
+          gradedBy:   r.supervisor_name || r.graded_by,
           isMe:       r.graded_by === session.supervisor_id,
         })));
       }
@@ -741,104 +587,16 @@ module.exports = async function handler(req, res) {
         const [sessionToken, projectId, groupGrades, individualGrades] = args;
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
-        const twCfg = await getTWConfig();
-        if (twCfg.tw_locked === 'true') return ok({ success: false, message: 'Teamwork grading has been locked by the administrator.' });
-        if (twCfg.week14_date) {
-          const w14 = new Date(twCfg.week14_date); w14.setHours(23, 59, 59, 999);
-          if (new Date() > w14) return ok({ success: false, message: 'Teamwork grades are locked after the Week 14 deadline and cannot be changed.' });
-        }
         const gradedBy = session.supervisor_id;
+
+        // Delete all grades for this project (shared grade — last write wins)
         await sql`DELETE FROM tw_grades WHERE project_id = ${projectId}`;
+
         const ts = new Date().toISOString();
         for (const g of (individualGrades || [])) {
           await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${projectId}, ${g.studentId}, ${g.criterion}, ${g.grade}, ${gradedBy}, 'Individual', ${ts})`;
         }
         return ok({ success: true });
-      }
-
-      case 'saveTeamworkDraft': {
-        const [sessionToken, projectId, individualGrades] = args;
-        const session = await verifySession(sessionToken);
-        if (!session) return ok({ success: false, message: 'Session expired.' });
-        const twCfg2 = await getTWConfig();
-        if (twCfg2.tw_locked === 'true') return ok({ success: false, message: 'Teamwork grading has been locked by the administrator.' });
-        if (twCfg2.week14_date) {
-          const w14 = new Date(twCfg2.week14_date); w14.setHours(23, 59, 59, 999);
-          if (new Date() > w14) return ok({ success: false, message: 'Teamwork grades are locked after the Week 14 deadline.' });
-        }
-        const gradedBy = session.supervisor_id;
-        await sql`DELETE FROM tw_grades WHERE project_id = ${projectId}`;
-        const ts = new Date().toISOString();
-        for (const g of (individualGrades || [])) {
-          if (g.grade === null || g.grade === undefined || isNaN(g.grade)) continue;
-          await sql`INSERT INTO tw_grades (grade_id, project_id, student_id, criterion, grade, graded_by, grade_type, timestamp) VALUES (${uid('TG')}, ${projectId}, ${g.studentId}, ${g.criterion}, ${g.grade}, ${gradedBy}, 'Individual', ${ts})`;
-        }
-        return ok({ success: true });
-      }
-
-      case 'submitFeedback': {
-        const [sessionToken, message] = args;
-        const session = await verifySession(sessionToken);
-        if (!session) return ok({ success: false, message: 'Session expired.' });
-        const from = session.name || session.supervisor_id;
-        const ts   = new Date().toISOString();
-        // Always store in DB first so feedback is never lost
-        await sql`CREATE TABLE IF NOT EXISTS feedback (
-          id TEXT PRIMARY KEY, supervisor_id TEXT, supervisor_name TEXT,
-          program TEXT, message TEXT, submitted_at TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE
-        )`;
-        await sql`INSERT INTO feedback (id, supervisor_id, supervisor_name, program, message, submitted_at)
-                  VALUES (${uid('FB')}, ${session.supervisor_id}, ${from}, ${session.program || ''}, ${String(message || '')}, ${ts})`;
-        // Email notification — always to admin's personal email
-        try {
-          await sendEmail(
-            'yousef.ajrah@bau.edu.lb',
-            `FYP System Feedback — from ${from}`,
-            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:28px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;">
-              <h3 style="color:#1e3a5f;margin-top:0;border-bottom:2px solid #e5e7eb;padding-bottom:12px;">FYP System — User Feedback</h3>
-              <p><strong>From:</strong> ${from}</p>
-              <p><strong>ID:</strong> ${session.supervisor_id}</p>
-              <p><strong>Program:</strong> ${session.program || '—'}</p>
-              <p><strong>Submitted:</strong> ${new Date(ts).toLocaleString('en-GB')}</p>
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
-              <p style="white-space:pre-wrap;line-height:1.7;color:#374151;">${String(message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"/>
-              <p style="color:#9ca3af;font-size:12px;margin:0;">Sent via the FYP Management System feedback form. All submissions are also stored in the system dashboard.</p>
-            </div>`
-          );
-        } catch { /* email failure doesn't affect the stored record */ }
-        return ok({ success: true });
-      }
-
-      case 'getFeedbacks': {
-        const [sessionToken] = args;
-        const session = await verifySession(sessionToken);
-        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
-        await sql`CREATE TABLE IF NOT EXISTS feedback (
-          id TEXT PRIMARY KEY, supervisor_id TEXT, supervisor_name TEXT,
-          program TEXT, message TEXT, submitted_at TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE
-        )`;
-        const rows = await sql`SELECT * FROM feedback ORDER BY submitted_at DESC`;
-        await sql`UPDATE feedback SET is_read = TRUE WHERE is_read = FALSE`;
-        return ok({ success: true, feedbacks: rows.map(r => ({
-          id: r.id, supervisorId: r.supervisor_id, name: r.supervisor_name,
-          program: r.program, message: r.message,
-          submittedAt: r.submitted_at, isRead: r.is_read,
-        })) });
-      }
-
-      case 'getUnreadFeedbackCount': {
-        const [sessionToken] = args;
-        const session = await verifySession(sessionToken);
-        if (!session || !session.is_admin) return ok({ count: 0 });
-        try {
-          await sql`CREATE TABLE IF NOT EXISTS feedback (
-            id TEXT PRIMARY KEY, supervisor_id TEXT, supervisor_name TEXT,
-            program TEXT, message TEXT, submitted_at TIMESTAMPTZ DEFAULT NOW(), is_read BOOLEAN DEFAULT FALSE
-          )`;
-          const rows = await sql`SELECT COUNT(*) AS cnt FROM feedback WHERE is_read = FALSE`;
-          return ok({ count: Number(rows[0]?.cnt || 0) });
-        } catch { return ok({ count: 0 }); }
       }
 
       // ─── Peer Evaluation ─────────────────────────────────────────────
@@ -966,25 +724,6 @@ module.exports = async function handler(req, res) {
         const link = String(reportLink || '');
         if (link && !link.startsWith('https://')) return ok({ success: false, message: 'Report link must use HTTPS.' });
 
-        // Prevent any supervisor of this project from being assigned as an examiner
-        const projRow = await sql`SELECT supervisors FROM projects WHERE project_id = ${projectId}`;
-        const projSupIds = (projRow[0] ? projRow[0].supervisors || '' : '').split(',').map(x => x.trim()).filter(Boolean);
-        if (projSupIds.length) {
-          const projSupRows = await sql`SELECT supervisor_id, name, email FROM supervisors WHERE supervisor_id = ANY(${projSupIds})`;
-          const projSupEmails = new Map(projSupRows.map(r => [String(r.email).toLowerCase(), r.name || r.supervisor_id]));
-          const blocked = (examiners || []).find(e => projSupEmails.has(String(e.email).toLowerCase()));
-          if (blocked) {
-            const name = projSupEmails.get(String(blocked.email).toLowerCase());
-            const isSelf = String(blocked.email).toLowerCase() === (projSupRows.find(r => r.supervisor_id === session.supervisor_id) || {}).email?.toLowerCase();
-            return ok({ success: false, message: isSelf ? 'You cannot assign yourself as an examiner.' : `"${name}" is already a supervisor of this project and cannot be assigned as an examiner.` });
-          }
-        }
-
-        // Require at least one non-Industry examiner to ensure the Report is graded
-        const hasInternal = (examiners || []).some(e => e.type === 'Inside University' || e.type === 'Outside the Program/University');
-        if (!hasInternal)
-          return ok({ success: false, message: 'At least one Internal examiner must be assigned to ensure the Report component is graded.' });
-
         const existing  = await sql`SELECT * FROM examiners WHERE project_id = ${projectId}`;
         const newEmails = (examiners || []).map(e => String(e.email).toLowerCase());
 
@@ -1021,21 +760,25 @@ module.exports = async function handler(req, res) {
       case 'sendExaminerEmails': {
         const [sessionToken, projectId, assignments] = args;
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const projectRows = await sql`SELECT title, type FROM projects WHERE project_id = ${projectId}`;
+        const projectRows = await sql`SELECT title FROM projects WHERE project_id = ${projectId}`;
         const project = projectRows[0] || null;
+        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         await Promise.all((assignments || []).map(async a => {
           const link = `${APP_URL}/examiner.html?token=${a.token}`;
+          const reportBlock = a.reportLink ? `<p><strong>Project Report:</strong><br/><a href="${a.reportLink}">${a.reportLink}</a></p>` : '';
           await sendEmail(
             a.email,
-            `FYP Grading Assignment — ${project ? project.title : projectId}`,
-            buildExaminerEmail({
-              name:          a.name,
-              projectTitle:  project ? project.title : projectId,
-              examinerType:  a.type,
-              projectType:   project ? project.type : '',
-              reportLink:    a.type !== 'Industry' ? (a.reportLink || '') : '',
-              gradingLink:   link,
-            })
+            `FYP Grading Assignment – ${project ? project.title : projectId}`,
+            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
+              <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
+              <p>Dear ${a.name || 'Examiner'},</p>
+              <p>You have been assigned to evaluate: <strong>${project ? project.title : projectId}</strong> (Role: ${a.type})</p>
+              ${reportBlock}
+              <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
+              <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
+              <p style="color:#666;font-size:12px;">This link is unique to you. Do not share it.</p>
+              <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
+            </div>`
           );
           await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${a.assignmentId} AND status = 'Assigned'`;
         }));
@@ -1071,51 +814,28 @@ module.exports = async function handler(req, res) {
       case 'resendExaminerEmail': {
         const [sessionToken, assignmentId] = args;
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const rows = await sql`SELECT e.*, p.title, p.type AS project_type FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
+        const rows = await sql`SELECT e.*, p.title FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
         const e = rows[0];
         if (!e) return ok({ success: false, message: 'Examiner not found.' });
+        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         const link = `${APP_URL}/examiner.html?token=${e.token}`;
+        const reportBlock = e.report_link ? `<p><strong>Project Report:</strong><br/><a href="${e.report_link}">${e.report_link}</a></p>` : '';
         await sendEmail(
           e.examiner_email,
-          `FYP Grading Assignment — ${e.title || assignmentId}`,
-          buildExaminerEmail({
-            name:         e.examiner_name,
-            projectTitle: e.title || assignmentId,
-            examinerType: e.examiner_type,
-            projectType:  e.project_type || '',
-            reportLink:   e.examiner_type !== 'Industry' ? (e.report_link || '') : '',
-            gradingLink:  link,
-          })
+          `FYP Grading Assignment – ${e.title || assignmentId}`,
+          `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
+            <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
+            <p>Dear ${e.examiner_name || 'Examiner'},</p>
+            <p>You have been assigned to evaluate: <strong>${e.title || assignmentId}</strong> (Role: ${e.examiner_type})</p>
+            ${reportBlock}
+            <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
+            <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
+            <p style="color:#666;font-size:12px;">This link is unique to you. Do not share it.</p>
+            <hr/><p style="color:#666;font-size:12px;">FYP Management System — Beirut Arab University — ECE Department</p>
+          </div>`
         );
         await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${assignmentId} AND status = 'Assigned'`;
         return ok({ success: true });
-      }
-
-      case 'sendPendingExaminerEmails': {
-        const [sessionToken, projectId] = args;
-        if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const rows = await sql`
-          SELECT e.*, p.title, p.type AS project_type
-          FROM examiners e JOIN projects p ON p.project_id = e.project_id
-          WHERE e.project_id = ${projectId} AND e.status = 'Assigned'`;
-        if (!rows.length) return ok({ success: true, sent: 0 });
-        await Promise.all(rows.map(async e => {
-          const link = `${APP_URL}/examiner.html?token=${e.token}`;
-          await sendEmail(
-            e.examiner_email,
-            `FYP Grading Assignment — ${e.title || projectId}`,
-            buildExaminerEmail({
-              name:         e.examiner_name,
-              projectTitle: e.title || projectId,
-              examinerType: e.examiner_type,
-              projectType:  e.project_type || '',
-              reportLink:   e.examiner_type !== 'Industry' ? (e.report_link || '') : '',
-              gradingLink:  link,
-            })
-          );
-          await sql`UPDATE examiners SET status = 'Invited' WHERE assignment_id = ${e.assignment_id} AND status = 'Assigned'`;
-        }));
-        return ok({ success: true, sent: rows.length });
       }
 
       // ─── Examiner Portal ─────────────────────────────────────────────
@@ -1362,7 +1082,7 @@ module.exports = async function handler(req, res) {
             const avg2 = cp.reduce((a, b) => a + b, 0) / cp.length;
             return { pct: rnd(avg2), level: avg2 < 60 ? 1 : avg2 < 70 ? 2 : avg2 < 85 ? 3 : 4 };
           }
-          abetByType[pt] = { abet4a: computeABET2('4a'), abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet7a: computeABET2('7a'), abet7b: computeABET2('7b') };
+          abetByType[pt] = { abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet7a: computeABET2('7a'), abet7b: computeABET2('7b') };
         });
 
         const now = new Date();
@@ -1392,14 +1112,15 @@ module.exports = async function handler(req, res) {
         const indRubric = await getIndividualRubric();
 
         let projects = await filterProjectsBySession(session, allProjects, allSups);
-        let programName = '';
-        if (!session.is_admin) programName = session.program || '';
+        const programName = session.is_admin ? '' : (session.program || '');
 
         const projectIds = new Set(projects.map(p => p.project_id));
         const students   = allStudents.filter(s => projectIds.has(s.project_id));
 
-        // Per-project completeness — grouped by FYP type
-        const incompleteByType = { FYP1: [], FYP2: [] };
+        // ── Per-project completeness ─────────────────────────────────────
+        const incompleteByType  = { FYP1: [], FYP2: [] };
+        const projectCompletion = {};
+
         projects.forEach(proj => {
           const pid      = proj.project_id;
           const projType = String(proj.type || 'FYP1');
@@ -1407,51 +1128,76 @@ module.exports = async function handler(req, res) {
           const projStudents = allStudents.filter(s => s.project_id === pid);
           const missing = [];
 
-          // a. All students submitted peer evaluations
           const peerSubmitters = new Set(peerEvals.filter(e => e.project_id === pid).map(e => e.evaluator_id));
-          projStudents.forEach(s => {
-            if (!peerSubmitters.has(s.student_id))
-              missing.push(`Peer eval not submitted by ${s.student_name}`);
-          });
+          projStudents.forEach(s => { if (!peerSubmitters.has(s.student_id)) missing.push(`Peer eval not submitted by ${s.student_name}`); });
 
-          // b. Supervisor submitted teamwork grades
           if (!twGrades.some(g => g.project_id === pid))
             missing.push('Teamwork grades not submitted by supervisor');
 
-          // c/d/e. Per examiner — required categories depend on examiner type
           const projExaminers = allExaminers.filter(e => e.project_id === pid);
-          if (!projExaminers.length)
-            missing.push('No examiners assigned yet');
+          if (!projExaminers.length) missing.push('No examiners assigned yet');
           projExaminers.forEach(examiner => {
             const name  = examiner.examiner_name || examiner.examiner_email;
             const eType = examiner.examiner_type;
-            if (examiner.status === 'Assigned') {
-              missing.push(`${name} (${eType}) — invitation email not yet sent`);
-              return; // no point checking grades if email was never sent
-            }
-            const eg      = exGrades.filter(g => g.assignment_id === examiner.assignment_id);
-            const hasRep  = eg.some(g => g.category === 'Report');
-            const hasPres = eg.some(g => g.category === 'Presentation');
-            if (eType === 'Industry') {
-              if (!hasPres) missing.push(`${name} (Industry) — Presentation grades missing`);
-            } else {
-              if (!hasRep)  missing.push(`${name} (${eType}) — Report grades missing`);
-              if (!hasPres) missing.push(`${name} (${eType}) — Presentation grades missing`);
-            }
+            if (examiner.status === 'Assigned') { missing.push(`${name} (${eType}) — invitation email not yet sent`); return; }
+            const eg = exGrades.filter(g => g.assignment_id === examiner.assignment_id);
+            if (eType === 'Industry') { if (!eg.some(g => g.category === 'Presentation')) missing.push(`${name} (Industry) — Presentation grades missing`); }
+            else { if (!eg.some(g => g.category === 'Report')) missing.push(`${name} (${eType}) — Report grades missing`); if (!eg.some(g => g.category === 'Presentation')) missing.push(`${name} (${eType}) — Presentation grades missing`); }
           });
 
+          projectCompletion[pid] = missing.length === 0;
           if (missing.length) incompleteByType[key].push({ title: String(proj.title || pid), missing });
         });
 
-        const completeTypes    = ['FYP1','FYP2'].filter(t => !incompleteByType[t].length);
-        const incompleteOut    = Object.fromEntries(Object.entries(incompleteByType).filter(([,v]) => v.length > 0));
+        // ── Program publish / unlock settings ────────────────────────────
+        let pubRows = [];
+        try {
+          await sql`CREATE TABLE IF NOT EXISTS program_publish_settings (
+            program_name TEXT PRIMARY KEY, unlocked_fyp1 BOOLEAN NOT NULL DEFAULT FALSE,
+            unlocked_fyp2 BOOLEAN NOT NULL DEFAULT FALSE, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )`;
+          pubRows = await sql`SELECT * FROM program_publish_settings`;
+        } catch {}
+        const pubMap = {};
+        pubRows.forEach(r => { pubMap[r.program_name] = r; });
+        const isUnlocked = (type) => {
+          if (session.is_admin) return false;
+          const row = pubMap[programName];
+          if (!row) return false;
+          return type === 'FYP1' ? !!row.unlocked_fyp1 : !!row.unlocked_fyp2;
+        };
 
-        if (!completeTypes.length)
-          return ok({ success: false, incomplete: true, program: programName, incompleteByType: incompleteOut, message: 'No project type is fully graded yet.' });
+        // ── Determine showable projects ──────────────────────────────────
+        const showableProjectIds   = new Set();
+        const partialPendingByType = {};
+        const completeTypes        = [];
 
-        // Compute results only for complete types
-        const completeIds      = new Set(projects.filter(p => completeTypes.includes(String(p.type||'FYP1'))).map(p => p.project_id));
-        const completeStudents = students.filter(s => completeIds.has(s.project_id));
+        ['FYP1', 'FYP2'].forEach(pt => {
+          const typeProjects   = projects.filter(p => String(p.type || 'FYP1') === pt);
+          const typeIncomplete = incompleteByType[pt] || [];
+          const allComplete    = typeIncomplete.length === 0;
+
+          if (allComplete) {
+            completeTypes.push(pt);
+            typeProjects.forEach(p => showableProjectIds.add(p.project_id));
+          } else if (isUnlocked(pt)) {
+            const individually = typeProjects.filter(p => projectCompletion[p.project_id]);
+            if (individually.length) {
+              individually.forEach(p => showableProjectIds.add(p.project_id));
+              partialPendingByType[pt] = typeIncomplete;
+            }
+          }
+        });
+
+        const incompleteOut = Object.fromEntries(
+          Object.entries(incompleteByType).filter(([t, v]) => v.length > 0 && !isUnlocked(t))
+        );
+
+        if (showableProjectIds.size === 0)
+          return ok({ success: false, incomplete: true, program: programName, incompleteByType: { ...incompleteOut, ...Object.fromEntries(Object.entries(incompleteByType).filter(([,v]) => v.length > 0)) }, message: 'No project type is fully graded yet.' });
+
+        // ── Compute results for showable projects ────────────────────────
+        const showableStudents = students.filter(s => showableProjectIds.has(s.project_id));
 
         const twW   = parseFloat(cfg.teamwork_weight     || 35) / 100;
         const peerW = parseFloat(cfg.peer_eval_weight    || 20) / 100;
@@ -1459,9 +1205,9 @@ module.exports = async function handler(req, res) {
         const repW  = parseFloat(cfg.report_weight       || 35) / 100;
         const presW = parseFloat(cfg.presentation_weight || 30) / 100;
 
-        const results = completeStudents.map(student => {
+        const results = showableStudents.map(student => {
           const project = projects.find(p => p.project_id === student.project_id);
-          const pt = project ? String(project.type || '') : '';
+          const pt      = project ? String(project.type || '') : '';
 
           const ind    = twGrades.filter(g => g.student_id === student.student_id && g.grade_type === 'Individual');
           const indMax = indRubric.reduce((s, r) => s + Number(r.maxGrade||25), 0) || 100;
@@ -1475,12 +1221,27 @@ module.exports = async function handler(req, res) {
           const twScore = (indPct * supW) + (peerPct * peerW);
 
           const projExCfg = exCfg.filter(c => !c.project_type || c.project_type === pt);
+
+          // ── Report: scope-aware per-student grade filter ──────────────
           const repCfg = projExCfg.filter(c => c.category === 'Report');
-          const repG   = exGrades.filter(g => g.project_id === student.project_id && g.category === 'Report');
+          const repG   = exGrades.filter(g => {
+            if (g.project_id !== student.project_id || g.category !== 'Report') return false;
+            const c = repCfg.find(cf => cf.criterion_name === g.criterion);
+            return c && c.grading_scope === 'Individual'
+              ? g.student_id === student.student_id
+              : (g.student_id === 'GROUP' || !g.student_id);
+          });
           const repPct = weightedPct(repG.map(g => ({ Criterion: g.criterion, Score: g.score })), repCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
 
+          // ── Presentation: scope-aware per-student grade filter ────────
           const presCfg = projExCfg.filter(c => c.category === 'Presentation');
-          const presG   = exGrades.filter(g => g.project_id === student.project_id && g.category === 'Presentation');
+          const presG   = exGrades.filter(g => {
+            if (g.project_id !== student.project_id || g.category !== 'Presentation') return false;
+            const c = presCfg.find(cf => cf.criterion_name === g.criterion);
+            return c && c.grading_scope === 'Individual'
+              ? g.student_id === student.student_id
+              : (g.student_id === 'GROUP' || !g.student_id);
+          });
           const presPct = weightedPct(presG.map(g => ({ Criterion: g.criterion, Score: g.score })), presCfg.map(c => ({ CriterionName: c.criterion_name, MaxGrade: c.max_grade, Weight: c.weight })));
 
           const final = (twScore * twW) + (repPct * repW) + (presPct * presW);
@@ -1494,34 +1255,20 @@ module.exports = async function handler(req, res) {
 
         const abetByType = {};
         ['FYP1','FYP2'].forEach(pt => {
-          if (!completeTypes.includes(pt)) return;
-          const typeProjects = projects.filter(p => p.type === pt);
-          if (!typeProjects.length) return;
-          const typeIds = new Set(typeProjects.map(p => p.project_id));
-          const tIndG = twGrades.filter(g => typeIds.has(g.project_id) && g.grade_type === 'Individual');
-          const tExG  = exGrades.filter(g => typeIds.has(g.project_id));
+          const typeShowable = projects.filter(p => String(p.type||'FYP1') === pt && showableProjectIds.has(p.project_id));
+          if (!typeShowable.length) return;
+          const typeIds = new Set(typeShowable.map(p => p.project_id));
+          const tIndG   = twGrades.filter(g => typeIds.has(g.project_id) && g.grade_type === 'Individual');
+          const tExG    = exGrades.filter(g => typeIds.has(g.project_id));
           function computeABET(tag) {
-            const critPcts = [];
-            indRubric.filter(r => String(r.abetOutcome||'') === tag).forEach(c => {
-              const gs = tIndG.filter(g => g.criterion === c.criterion);
-              if (!gs.length) return;
-              critPcts.push((gs.filter(g=>parseFloat(g.grade||0)>=0.7*c.maxGrade).length/gs.length)*100);
-            });
-            exCfg.filter(c => String(c.abet_outcome||'') === tag).forEach(c => {
-              const cg = tExG.filter(g => g.criterion === c.criterion_name);
-              if (!cg.length) return;
-              critPcts.push((cg.filter(g=>parseFloat(g.score||0)>=0.7*parseFloat(c.max_grade||100)).length/cg.length)*100);
-            });
-            if (!critPcts.length) return null;
-            const avg2 = critPcts.reduce((a,b)=>a+b,0)/critPcts.length;
+            const cp = [];
+            indRubric.filter(r => String(r.abetOutcome||'') === tag).forEach(c => { const gs = tIndG.filter(g => g.criterion === c.criterion); if (!gs.length) return; cp.push((gs.filter(g=>parseFloat(g.grade||0)>=0.7*c.maxGrade).length/gs.length)*100); });
+            exCfg.filter(c => String(c.abet_outcome||'') === tag).forEach(c => { const cg = tExG.filter(g => g.criterion === c.criterion_name); if (!cg.length) return; cp.push((cg.filter(g=>parseFloat(g.score||0)>=0.7*parseFloat(c.max_grade||100)).length/cg.length)*100); });
+            if (!cp.length) return null;
+            const avg2 = cp.reduce((a,b)=>a+b,0)/cp.length;
             return { pct: rnd(avg2), level: avg2<60?1:avg2<70?2:avg2<85?3:4 };
           }
-          abetByType[pt] = {
-            abet4a: computeABET('4a'),
-            abet5a: computeABET('5a'), abet5b: computeABET('5b'),
-            abet2a: computeABET('2a'), abet2b: computeABET('2b'),
-            abet7a: computeABET('7a'), abet7b: computeABET('7b'),
-          };
+          abetByType[pt] = { abet5a: computeABET('5a'), abet5b: computeABET('5b'), abet2a: computeABET('2a'), abet2b: computeABET('2b'), abet7a: computeABET('7a'), abet7b: computeABET('7b') };
         });
 
         const statsByType = {};
@@ -1533,7 +1280,44 @@ module.exports = async function handler(req, res) {
           statsByType[pt] = { count: gr.length, mean: rnd(mean), sd: rnd(sd) };
         });
 
-        return ok({ success: true, results, abetByType, statsByType, incompleteByType: incompleteOut, completeTypes });
+        return ok({ success: true, results, abetByType, statsByType, incompleteByType: incompleteOut, completeTypes, partialPendingByType, unlocked: { FYP1: isUnlocked('FYP1'), FYP2: isUnlocked('FYP2') } });
+      }
+
+      case 'getProgramPublishSettings': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Admin only.' });
+        await sql`CREATE TABLE IF NOT EXISTS program_publish_settings (
+          program_name TEXT PRIMARY KEY, unlocked_fyp1 BOOLEAN NOT NULL DEFAULT FALSE,
+          unlocked_fyp2 BOOLEAN NOT NULL DEFAULT FALSE, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+        const programs  = await sql`SELECT program_name FROM programs ORDER BY program_name`;
+        const settings  = await sql`SELECT * FROM program_publish_settings`;
+        const settMap   = {};
+        settings.forEach(r => { settMap[r.program_name] = r; });
+        const merged = programs.map(p => ({
+          program_name:  p.program_name,
+          unlocked_fyp1: settMap[p.program_name]?.unlocked_fyp1 ?? false,
+          unlocked_fyp2: settMap[p.program_name]?.unlocked_fyp2 ?? false,
+        }));
+        return ok({ success: true, settings: merged });
+      }
+
+      case 'setProgramPublish': {
+        const [sessionToken, programName, type, unlocked] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Admin only.' });
+        const col = type === 'FYP1' ? 'unlocked_fyp1' : 'unlocked_fyp2';
+        if (col === 'unlocked_fyp1') {
+          await sql`INSERT INTO program_publish_settings (program_name, unlocked_fyp1, updated_at)
+            VALUES (${programName}, ${!!unlocked}, NOW())
+            ON CONFLICT (program_name) DO UPDATE SET unlocked_fyp1 = EXCLUDED.unlocked_fyp1, updated_at = NOW()`;
+        } else {
+          await sql`INSERT INTO program_publish_settings (program_name, unlocked_fyp2, updated_at)
+            VALUES (${programName}, ${!!unlocked}, NOW())
+            ON CONFLICT (program_name) DO UPDATE SET unlocked_fyp2 = EXCLUDED.unlocked_fyp2, updated_at = NOW()`;
+        }
+        return ok({ success: true });
       }
 
       case 'updateProject': {
@@ -1568,18 +1352,6 @@ module.exports = async function handler(req, res) {
           const toUpdate = submitted.filter(s => s.isExisting);
 
           if (toInsert.length) {
-            // Within-batch duplicate check before any write
-            const newIds   = new Set();
-            const newNames = new Set();
-            for (const s of toInsert) {
-              if (newIds.has(s.studentId))
-                return ok({ success: false, message: `Duplicate Student ID "${s.studentId}" in the submitted list.` });
-              newIds.add(s.studentId);
-              const norm = s.studentName.toLowerCase().trim();
-              if (newNames.has(norm))
-                return ok({ success: false, message: `Duplicate Student name "${s.studentName}" in the submitted list.` });
-              newNames.add(norm);
-            }
             const otherStudents = await sql`SELECT student_id, student_name FROM students WHERE project_id != ${projectId}`;
             for (const s of toInsert) {
               if (otherStudents.some(r => r.student_id === s.studentId))
@@ -1599,17 +1371,8 @@ module.exports = async function handler(req, res) {
           for (const s of toUpdate) {
             await sql`UPDATE students SET student_name = ${s.studentName}, email = ${s.email || ''} WHERE student_id = ${s.studentId}`;
           }
-          const insertedNewIds = [];
-          try {
-            for (const s of toInsert) {
-              await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.studentId}, ${s.studentName}, ${s.email || ''}, ${projectId})`;
-              insertedNewIds.push(s.studentId);
-            }
-          } catch (insertErr) {
-            for (const sid of insertedNewIds) {
-              await sql`DELETE FROM students WHERE student_id = ${sid}`.catch(() => {});
-            }
-            return ok({ success: false, message: 'Failed to add new students due to a database error — no new students were saved. Please check the data and try again.' });
+          for (const s of toInsert) {
+            await sql`INSERT INTO students (student_id, student_name, email, project_id) VALUES (${s.studentId}, ${s.studentName}, ${s.email || ''}, ${projectId})`;
           }
           patch.students = submittedIds.join(',');
         }

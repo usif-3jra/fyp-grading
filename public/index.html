@@ -44,14 +44,6 @@
     <button class="btn btn-primary w-100 btn-lg mt-1" id="btn-login" onclick="Auth.login()">
       <i class="fas fa-sign-in-alt me-2"></i>Sign In
     </button>
-    <div class="text-center mt-3">
-      <a href="/guidelines.html" target="_blank"
-         style="font-size:13px;color:#6b7280;text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;transition:all .15s;"
-         onmouseover="this.style.background='#f0f4ff';this.style.borderColor='#93c5fd';this.style.color='#1d4ed8';"
-         onmouseout="this.style.background='#f9fafb';this.style.borderColor='#e5e7eb';this.style.color='#6b7280';">
-        <i class="fas fa-book-open"></i> User Guidelines
-      </a>
-    </div>
   </div>
 </div>
 
@@ -71,20 +63,16 @@
       </div>
     </div>
     <div class="header-actions d-flex align-items-center gap-2">
-      <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalFeedback" title="Send feedback or report an issue">
-        <i class="fas fa-comment-dots me-1"></i>Feedback
-      </button>
-      <button class="btn btn-sm btn-outline-light d-none admin-only-field position-relative" id="btn-view-feedback" data-bs-toggle="modal" data-bs-target="#modalFeedbackInbox" title="View user feedback" onclick="FeedbackInbox.load()">
-        <i class="fas fa-inbox me-1"></i>Inbox
-        <span id="feedback-unread-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:9px;"></span>
+      <button class="btn btn-sm btn-success d-none" id="btn-publish-settings" data-bs-toggle="modal" data-bs-target="#modalPublishSettings" title="Grade Publishing Settings (Admin)" onclick="Publish.load()">
+        <i class="fas fa-unlock-alt me-1"></i>Publish
       </button>
       <button class="btn btn-sm btn-warning d-none" id="btn-manage-users" data-bs-toggle="modal" data-bs-target="#modalManageUsers" title="Manage Supervisor Credentials (Admin)">
         <i class="fas fa-users-cog me-1"></i>Manage Users
       </button>
-      <span id="header-countdown" class="d-none btn btn-sm btn-outline-light" style="pointer-events:none;cursor:default;white-space:nowrap;"><i class="fas fa-clock me-1"></i><span id="header-countdown-text"></span></span>
+      <span id="header-countdown" class="d-none small text-light" style="opacity:.85;font-size:11px;white-space:nowrap;border:1px solid rgba(255,255,255,.3);padding:3px 9px;border-radius:6px;"><i class="fas fa-clock me-1"></i><span id="header-countdown-text"></span></span>
       <!-- User Menu -->
       <div class="dropdown">
-        <button class="btn btn-sm btn-outline-light dropdown-toggle user-menu-btn" data-bs-toggle="dropdown">
+        <button class="btn btn-sm btn-light dropdown-toggle user-menu-btn" data-bs-toggle="dropdown">
           <i class="fas fa-user-circle me-1"></i><span id="header-sup-name">Supervisor</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
@@ -291,32 +279,15 @@
                   </div>
                   <button class="btn btn-primary btn-sm" onclick="TW.saveConfig()"><i class="fas fa-save me-1"></i>Save Weights</button>
 
-                  <!-- Admin-only: Semester End Date & Week 14 Lock -->
+                  <!-- Admin-only: Semester End Date -->
                   <hr class="admin-only-field"/>
                   <div class="admin-only-field">
                     <label class="form-label fw-semibold">
-                      <i class="fas fa-calendar-check me-1 text-danger"></i>Semester End Date
+                      <i class="fas fa-calendar-check me-1 text-danger"></i>Semester End Date (Week 14)
                     </label>
                     <input type="date" id="cfg-semester-end" class="form-control mb-2"/>
                     <div class="form-text mb-2">Examiners cannot grade Presentation until this date passes.</div>
-                    <button class="btn btn-outline-danger btn-sm mb-3" onclick="TW.saveSemesterEndDate()"><i class="fas fa-calendar-check me-1"></i>Save End Date</button>
-
-                    <label class="form-label fw-semibold">
-                      <i class="fas fa-lock me-1 text-warning"></i>Week 14 TW Grade Lock Date
-                    </label>
-                    <input type="date" id="cfg-week14-date" class="form-control mb-2"/>
-                    <div class="form-text mb-2">Supervisors cannot edit teamwork grades after this date. Saved grades are automatically finalized.</div>
-                    <button class="btn btn-outline-warning btn-sm mb-3" onclick="TW.saveWeek14Date()"><i class="fas fa-lock me-1"></i>Save Week 14 Date</button>
-
-                    <hr style="margin:4px 0 12px;"/>
-                    <div class="d-flex align-items-center gap-3">
-                      <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="cfg-tw-locked" role="switch" onchange="TW.setLock(this.checked)"/>
-                        <label class="form-check-label fw-semibold" for="cfg-tw-locked">Lock TW Grading Now</label>
-                      </div>
-                      <span id="tw-lock-badge" class="badge bg-success">Unlocked</span>
-                    </div>
-                    <div class="form-text mt-1">Manually lock or unlock supervisor teamwork grading at any time, regardless of the Week 14 date.</div>
+                    <button class="btn btn-outline-danger btn-sm" onclick="TW.saveSemesterEndDate()"><i class="fas fa-calendar-check me-1"></i>Save End Date</button>
                   </div>
                 </div>
               </div>
@@ -423,17 +394,12 @@
           </div>
 
           <div id="twGradingArea" class="d-none">
-            <!-- Week 14 lock notice (shown when locked) -->
-            <div id="tw-locked-notice" class="alert alert-danger d-none mb-3">
-              <i class="fas fa-lock me-2"></i><strong>Teamwork Grading Locked:</strong> The Week 14 deadline has passed. Grades are finalized and cannot be changed.
-            </div>
-
             <!-- Individual Grading Matrix -->
             <div class="card card-section mb-4">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                   <h6 class="card-title fw-bold mb-0"><i class="fas fa-user-check me-2 text-info"></i>Individual Grading Matrix</h6>
-                  <a href="https://mirror-logic.github.io/fyp-grading/FYP_infographic_p2.png" target="_blank" class="btn btn-outline-secondary btn-sm flex-shrink-0 ms-2">
+                  <a href="https://baudom-my.sharepoint.com/:i:/g/personal/yousef_ajrah_bau_edu_lb/IQBoloYoqmjOQ5MRdeV3vTWJAfrfeNt3MeCxdc5yoeD2Bv4?e=iLLkha" target="_blank" class="btn btn-outline-secondary btn-sm flex-shrink-0 ms-2">
                     <i class="fas fa-image me-1"></i>View Rubric
                   </a>
                 </div>
@@ -442,11 +408,9 @@
               </div>
             </div>
 
-            <div class="d-flex gap-2 flex-wrap">
-              <button class="btn btn-primary btn-lg" id="btn-tw-save-draft" onclick="TW.saveDraft()" style="min-width:180px;">
-                <i class="fas fa-save me-2"></i>Save Grades
-              </button>
-            </div>
+            <button class="btn btn-success btn-lg" onclick="TW.submitGrades()">
+              <i class="fas fa-check-circle me-2"></i>Submit Teamwork Grades
+            </button>
           </div>
         </div>
 
@@ -478,10 +442,6 @@
               </div>
 
               <label class="form-label mb-2">Examiners</label>
-              <div class="alert alert-info py-2 px-3 mb-2" style="font-size:12.5px;">
-                <i class="fas fa-info-circle me-1"></i>
-                <strong>Note:</strong> It is recommended to assign at least three examiners, including at least one examiner from outside the program, from another university, or from industry. Additionally, at least one Internal examiner must always be assigned to ensure the Report component is graded.
-              </div>
               <div id="examinerRows"></div>
 
               <div class="d-flex flex-column gap-2 mt-3">
@@ -490,6 +450,9 @@
                 </button>
                 <button class="btn btn-primary w-100" id="btnAssign" onclick="Ex.assign()">
                   <i class="fas fa-link me-2"></i>Assign
+                </button>
+                <button class="btn btn-success w-100 d-none" id="btnSendEmail" onclick="Ex.sendEmails()">
+                  <i class="fas fa-envelope me-2"></i>Send Email Invitations
                 </button>
               </div>
             </div>
@@ -501,12 +464,7 @@
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="card-title fw-bold mb-0"><i class="fas fa-tasks me-2 text-primary"></i>Examiner Status</h6>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-success btn-sm d-none" id="btnSendAllEmails" onclick="Ex.sendAllEmails()">
-                    <i class="fas fa-envelope me-1"></i>Send All Pending Emails
-                  </button>
-                  <button class="btn btn-outline-secondary btn-sm" onclick="Ex.refreshStatus()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
-                </div>
+                <button class="btn btn-outline-secondary btn-sm" onclick="Ex.refreshStatus()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
               </div>
               <div id="examinerStatusTable">
                 <p class="text-muted small">Select a project to see examiner status.</p>
@@ -559,10 +517,11 @@
             <option>FYP2</option>
           </select>
           <button class="btn btn-sm btn-primary" onclick="Res.load()"><i class="fas fa-sync me-1"></i>Load Results</button>
-          <button class="btn btn-sm btn-outline-danger" id="btn-export-pdf" disabled onclick="Res.exportPDF()"><i class="fas fa-file-pdf me-1"></i>Export PDF</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="Res.exportPDF()"><i class="fas fa-file-pdf me-1"></i>Export PDF</button>
         </div>
       </div>
       <div id="res-incomplete-warning" class="d-none"></div>
+      <div id="res-partial-pending" class="d-none"></div>
       <div class="table-responsive">
         <table class="table table-bordered table-hover table-sm results-table">
           <thead>
@@ -647,6 +606,27 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Reg.saveEditProject()"><i class="fas fa-save me-1"></i>Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: Publish Settings (Admin Only) ═══════════ -->
+<div class="modal fade" id="modalPublishSettings" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-unlock-alt me-2"></i>Grade Publishing Settings</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">When unlocked, supervisors in that program can view results for each individually completed project without waiting for the entire cohort to finish.</p>
+        <div id="publish-settings-body">
+          <div class="text-center py-4"><div class="spinner-border text-success"></div></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
@@ -752,53 +732,6 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Reg.saveSupervisorToSystem()"><i class="fas fa-save me-1"></i>Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ MODAL: Feedback Inbox (Admin) ═══════════ -->
-<div class="modal fade" id="modalFeedbackInbox" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-inbox me-2 text-primary"></i>Feedback Inbox</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div id="feedback-inbox-list" style="min-height:120px;">
-          <div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════ MODAL: Feedback ═══════════ -->
-<div class="modal fade" id="modalFeedback" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fas fa-comment-dots me-2 text-primary"></i>Send Feedback / Report an Issue</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">Share comments, suggestions, or report any issue with the FYP system. Your message will be sent directly to the admin.</p>
-        <div class="mb-3">
-          <label class="form-label fw-medium">Your Message <span class="text-danger">*</span></label>
-          <textarea id="feedback-message" class="form-control" rows="5" placeholder="Describe your issue or suggestion…"></textarea>
-        </div>
-        <div id="feedback-err" class="alert alert-danger py-2 d-none"></div>
-        <div id="feedback-ok" class="alert alert-success py-2 d-none"><i class="fas fa-check-circle me-1"></i>Your feedback has been sent. Thank you!</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-primary" id="btn-send-feedback" style="min-width:150px;" onclick="Feedback.send()">
-          <i class="fas fa-paper-plane me-1"></i>Send Feedback
-        </button>
       </div>
     </div>
   </div>
