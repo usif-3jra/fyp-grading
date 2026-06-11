@@ -827,8 +827,11 @@ module.exports = async function handler(req, res) {
       case 'sendExaminerEmails': {
         const [sessionToken, projectId, assignments] = args;
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const projectRows = await sql`SELECT title FROM projects WHERE project_id = ${projectId}`;
+        const projectRows = await sql`SELECT title, supervisors FROM projects WHERE project_id = ${projectId}`;
         const project = projectRows[0] || null;
+        const v2SupIds = (project?.supervisors || '').split(',').map(x => x.trim()).filter(Boolean);
+        const v2SupRows = v2SupIds.length ? await sql`SELECT name FROM supervisors WHERE supervisor_id = ANY(${v2SupIds})` : [];
+        const v2SupervisorName = v2SupRows.map(r => r.name).join(', ') || '—';
         const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         await Promise.all((assignments || []).map(async a => {
           const link = `${APP_URL}/examiner.html?token=${a.token}`;
@@ -839,7 +842,7 @@ module.exports = async function handler(req, res) {
             `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
               <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
               <p>Dear ${a.name || 'Examiner'},</p>
-              <p>You have been assigned to evaluate: <strong>${project ? project.title : projectId}</strong> (Role: ${a.type})</p>
+              <p>You have been assigned to evaluate: <strong>${project ? project.title : projectId}</strong><br/>Supervisor: <strong>${v2SupervisorName}</strong><br/>Role: ${a.type}</p>
               ${reportBlock}
               <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
               <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
@@ -881,9 +884,12 @@ module.exports = async function handler(req, res) {
       case 'resendExaminerEmail': {
         const [sessionToken, assignmentId] = args;
         if (!await verifySession(sessionToken)) return ok({ success: false, message: 'Session expired.' });
-        const rows = await sql`SELECT e.*, p.title FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
+        const rows = await sql`SELECT e.*, p.title, p.supervisors FROM examiners e JOIN projects p ON p.project_id = e.project_id WHERE e.assignment_id = ${assignmentId}`;
         const e = rows[0];
         if (!e) return ok({ success: false, message: 'Examiner not found.' });
+        const v2rSupIds = (e.supervisors || '').split(',').map(x => x.trim()).filter(Boolean);
+        const v2rSupRows = v2rSupIds.length ? await sql`SELECT name FROM supervisors WHERE supervisor_id = ANY(${v2rSupIds})` : [];
+        const v2rSupervisorName = v2rSupRows.map(r => r.name).join(', ') || '—';
         const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
         const link = `${APP_URL}/examiner.html?token=${e.token}`;
         const reportBlock = e.report_link ? `<p><strong>Project Report:</strong><br/><a href="${e.report_link}">${e.report_link}</a></p>` : '';
@@ -893,7 +899,7 @@ module.exports = async function handler(req, res) {
           `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;text-align:left;">
             <h2 style="color:#1e3a5f;">FYP Grading Assignment</h2>
             <p>Dear ${e.examiner_name || 'Examiner'},</p>
-            <p>You have been assigned to evaluate: <strong>${e.title || assignmentId}</strong> (Role: ${e.examiner_type})</p>
+            <p>You have been assigned to evaluate: <strong>${e.title || assignmentId}</strong><br/>Supervisor: <strong>${v2rSupervisorName}</strong><br/>Role: ${e.examiner_type}</p>
             ${reportBlock}
             <p><strong>FYP Grading Rubrics:</strong> <a href="${RUBRIC_PDF}">View Rubrics</a></p>
             <p><a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:bold;">Open Grading Portal</a></p>
