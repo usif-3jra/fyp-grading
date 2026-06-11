@@ -1162,7 +1162,7 @@ const Ex = {
             <select class="form-select form-select-sm ex-int-prog"></select>
           </div>
           <div class="col-md-6">
-            <label class="form-label mb-1 small">Supervisor</label>
+            <label class="form-label mb-1 small">Examiner</label>
             <select class="form-select form-select-sm ex-int-sup"></select>
           </div>
         </div>
@@ -1185,7 +1185,31 @@ const Ex = {
       this.programs.map(p => `<option>${p}</option>`).join('');
     progSel.addEventListener('change', () => this._onIntProgChange(progSel));
 
+    row.querySelector('.ex-ext-email').addEventListener('blur', () => this._checkExternalInput(row));
+    row.querySelector('.ex-ext-name').addEventListener('blur',  () => this._checkExternalInput(row));
+
     c.appendChild(row);
+  },
+
+  _checkExternalInput(row) {
+    const typeSel = row.querySelector('.ex-type-sel');
+    const type = typeSel.value;
+    if (type !== 'Industry' && type !== 'Outside the Program/University') return;
+    const emailVal = (row.querySelector('.ex-ext-email').value || '').trim().toLowerCase();
+    const nameVal  = (row.querySelector('.ex-ext-name').value  || '').trim().toLowerCase();
+    if (!emailVal && !nameVal) return;
+    const match = this.allSupsCache.find(s =>
+      (emailVal && s.email.toLowerCase() === emailVal) ||
+      (nameVal  && s.name.toLowerCase()  === nameVal)
+    );
+    if (!match) return;
+    if (type === 'Industry') {
+      typeSel.value = 'Outside the Program/University';
+      this.onTypeChange(typeSel);
+      Toast.show(`"${match.name}" is an internal faculty member — type automatically changed to "Outside the Program/University".`, 'warning');
+    } else {
+      Toast.show(`"${match.name}" is an internal faculty member — use "Inside University" type for this person.`, 'warning');
+    }
   },
 
   onTypeChange(sel) {
@@ -1201,13 +1225,21 @@ const Ex = {
   _onIntProgChange(progSel) {
     const row    = progSel.closest('.ex-row');
     const supSel = row.querySelector('.ex-int-sup');
-    const sups   = this.allSupsCache.filter(s => s.program === progSel.value);
-    supSel.innerHTML = '<option value="">Select supervisor…</option>' +
+
+    const selfId     = Auth.supervisor && Auth.supervisor.id;
+    const pid        = document.getElementById('ex-project-sel').value;
+    const project    = this.allProjects.find(p => p.ProjectID === pid);
+    const projSupIds = project
+      ? (project.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+    const blocked = new Set([selfId, ...projSupIds].filter(Boolean));
+
+    const sups = this.allSupsCache.filter(s => s.program === progSel.value && !blocked.has(s.id));
+    supSel.innerHTML = '<option value="">Select examiner…</option>' +
       sups.map(s => `<option value="${s.id}" data-email="${s.email}" data-name="${s.name}">${s.name}</option>`).join('');
   },
 
   onProjectChange() {
-    document.getElementById('btnSendEmail').classList.add('d-none');
     this.assignments = [];
     this.refreshStatus();
   },
@@ -1240,6 +1272,44 @@ const Ex = {
     const examiners = this._gatherExaminers();
     if (!examiners.length) { Toast.show('Add at least one complete examiner row.', 'warning'); return; }
 
+    // Block all supervisors of this project (self + co-supervisors)
+    const project    = this.allProjects.find(p => p.ProjectID === pid);
+    const projSupIds = project
+      ? (project.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean)
+      : [];
+    const projSupEmails = new Map(
+      this.allSupsCache
+        .filter(s => projSupIds.includes(s.id) || (Auth.supervisor && s.id === Auth.supervisor.id))
+        .map(s => [s.email.toLowerCase(), s.name])
+    );
+    const blockedSup = examiners.find(e => projSupEmails.has(e.email.toLowerCase()));
+    if (blockedSup) {
+      const isSelf = Auth.supervisor && blockedSup.email.toLowerCase() === Auth.supervisor.email.toLowerCase();
+      Toast.show(
+        isSelf
+          ? 'You cannot assign yourself as an examiner.'
+          : `"${projSupEmails.get(blockedSup.email.toLowerCase())}" is already a supervisor of this project and cannot be assigned as an examiner.`,
+        'error'
+      );
+      return;
+    }
+
+    // Block external/industry examiners from being internal users
+    const allSupEmailsSet = new Set(this.allSupsCache.map(s => s.email.toLowerCase()));
+    const extConflict = examiners.find(e =>
+      (e.type === 'Outside the Program/University' || e.type === 'Industry') &&
+      allSupEmailsSet.has(e.email.toLowerCase())
+    );
+    if (extConflict) {
+      Toast.show(`"${extConflict.name || extConflict.email}" is an internal faculty member and cannot be assigned as an External or Industry examiner. Use "Inside University" type instead.`, 'error');
+      return;
+    }
+
+    const hasInternal = examiners.some(e => e.type === 'Inside University' || e.type === 'Outside the Program/University');
+    if (!hasInternal) {
+      Toast.show('At least one Internal examiner must be assigned to ensure the Report component is graded.', 'error'); return;
+    }
+
     Spinner.show();
     try {
       const res = await gsrAuth('assignExaminers', pid, examiners, reportLink);
@@ -1251,37 +1321,52 @@ const Ex = {
         Toast.show(`Already assigned & emailed — kept in list: ${names}`, 'warning');
       }
 
-      if (this.assignments.length) {
-        Toast.show('Examiners assigned. Now send invitation emails.');
-        document.getElementById('btnSendEmail').classList.remove('d-none');
-      } else {
-        Toast.show('No new examiners to email — all were already invited.');
-        document.getElementById('btnSendEmail').classList.add('d-none');
-      }
+      Toast.show(this.assignments.length
+        ? 'Examiners assigned. Use "Send All Pending Emails" in the Examiner Status panel to send invitations.'
+        : 'No new examiners to email — all were already invited.'
+      );
       this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
 
-  async sendEmails() {
+  async sendAllEmails() {
     const pid = document.getElementById('ex-project-sel').value;
-    if (!this.assignments.length) { Toast.show('Assign examiners first.', 'warning'); return; }
+    if (!pid) { Toast.show('Select a project first.', 'warning'); return; }
     Spinner.show();
     try {
-      const res = await gsrAuth('sendExaminerEmails', pid, this.assignments);
+      const allExaminers = await gsrAuth('getExaminersForProject', pid);
+      const pending = allExaminers.filter(e => (e.Status || 'Assigned') === 'Assigned');
+      if (!pending.length) { Toast.show('All examiners have already been emailed.'); Spinner.hide(); return; }
+      const assignments = pending.map(e => ({
+        assignmentId: e.AssignmentID,
+        name:         e.ExaminerName,
+        email:        e.ExaminerEmail,
+        type:         e.ExaminerType,
+        token:        e.Token,
+        reportLink:   e.ReportLink || '',
+      }));
+      const res = await gsrAuth('sendExaminerEmails', pid, assignments);
       if (!res.success) throw new Error(res.message);
-      Toast.show('Invitation emails sent successfully.');
+      Toast.show(`Invitation emails sent to ${pending.length} examiner(s).`);
       await this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
 
   async refreshStatus() {
-    const pid = document.getElementById('ex-project-sel').value;
-    const c   = document.getElementById('examinerStatusTable');
-    if (!pid) { c.innerHTML = '<p class="text-muted small">Select a project to see examiner status.</p>'; return; }
+    const pid        = document.getElementById('ex-project-sel').value;
+    const c          = document.getElementById('examinerStatusTable');
+    const sendAllBtn = document.getElementById('btnSendAllEmails');
+    if (!pid) {
+      c.innerHTML = '<p class="text-muted small">Select a project to see examiner status.</p>';
+      if (sendAllBtn) sendAllBtn.classList.add('d-none');
+      return;
+    }
     try {
       const examiners = await gsrAuth('getExaminersForProject', pid);
+      const hasPending = examiners.some(e => (e.Status || 'Assigned') === 'Assigned');
+      if (sendAllBtn) sendAllBtn.classList.toggle('d-none', !hasPending);
       if (!examiners.length) { c.innerHTML = '<p class="text-muted small">No examiners assigned yet.</p>'; return; }
       const emailSent  = st => st !== 'Assigned';
       const gradeCell  = v => v
