@@ -462,6 +462,39 @@ const Reg = {
       if (!payload.title || !payload.type || !payload.semester || !payload.year)
         throw new Error('Please fill all required project fields.');
 
+      // ── Duplicate checks against in-memory cache (before hitting the DB) ──
+
+      // 1. Duplicate project title
+      const titleNorm = payload.title.toLowerCase().trim();
+      const dupTitle = this._projectsCache.find(p => p.Title.toLowerCase().trim() === titleNorm);
+      if (dupTitle) throw new Error(`A project named "${payload.title}" already exists in the system.`);
+
+      // 2. Duplicate student IDs / names within this form
+      const formIdSet   = new Set();
+      const formNameSet = new Set();
+      for (const s of students) {
+        const idKey   = s.id.toLowerCase();
+        const nameKey = s.name.toLowerCase().trim();
+        if (formIdSet.has(idKey))     throw new Error(`Student ID "${s.id}" is entered more than once in this form.`);
+        if (formNameSet.has(nameKey)) throw new Error(`Student name "${s.name}" is entered more than once in this form.`);
+        formIdSet.add(idKey);
+        formNameSet.add(nameKey);
+      }
+
+      // 3. Student ID or name already registered in the system
+      for (const s of students) {
+        const byId = this._studentsCache.find(cs => cs.StudentID === s.id);
+        if (byId) {
+          const proj = this._projectsCache.find(p => p.ProjectID === byId.ProjectID);
+          throw new Error(`Student ID "${s.id}" is already registered${proj ? ` under project "${proj.Title}"` : ''}.`);
+        }
+        const byName = this._studentsCache.find(cs => cs.StudentName.toLowerCase().trim() === s.name.toLowerCase().trim());
+        if (byName) {
+          const proj = this._projectsCache.find(p => p.ProjectID === byName.ProjectID);
+          throw new Error(`Student "${s.name}" is already registered${proj ? ` under project "${proj.Title}"` : ''}.`);
+        }
+      }
+
       const res = await gsrAuth('registerProject', payload);
       if (!res.success) throw new Error(res.message);
 
