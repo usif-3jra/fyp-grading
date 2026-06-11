@@ -102,32 +102,32 @@
           <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalChangePwd">
             <i class="fas fa-key me-2 text-primary"></i>Change Password
           </a></li>
-          <li><a class="dropdown-item text-danger" href="#" onclick="Auth.logout()">
-            <i class="fas fa-sign-out-alt me-2"></i>Logout
-          </a></li>
         </ul>
       </div>
+      <button class="btn btn-sm btn-danger" onclick="Auth.logout()" title="Logout">
+        <i class="fas fa-sign-out-alt me-1"></i>Logout
+      </button>
     </div>
   </div>
 </header>
 
 <!-- ═══════════════════ KPI BANNER ═══════════════════ -->
 <div class="kpi-banner">
-  <div class="kpi-card">
+  <div class="kpi-card" style="cursor:pointer;" onclick="App.showProjects('FYP1')" title="Click to view FYP1 projects">
     <div class="kpi-icon-wrap"><i class="fas fa-folder-open kpi-icon"></i></div>
     <div class="kpi-body">
       <div class="kpi-val" id="val-fyp1">—</div>
       <div class="kpi-lbl">Active FYP1 Projects</div>
     </div>
   </div>
-  <div class="kpi-card">
+  <div class="kpi-card" style="cursor:pointer;" onclick="App.showProjects('FYP2')" title="Click to view FYP2 projects">
     <div class="kpi-icon-wrap"><i class="fas fa-folder-open kpi-icon"></i></div>
     <div class="kpi-body">
       <div class="kpi-val" id="val-fyp2">—</div>
       <div class="kpi-lbl">Active FYP2 Projects</div>
     </div>
   </div>
-  <div class="kpi-card">
+  <div class="kpi-card" style="cursor:pointer;" onclick="App.showStudents()" title="Click to view all students">
     <div class="kpi-icon-wrap"><i class="fas fa-users kpi-icon"></i></div>
     <div class="kpi-body">
       <div class="kpi-val" id="val-stu">—</div>
@@ -866,6 +866,63 @@
   <div class="spinner-box">
     <div class="spinner-border text-light" role="status"></div>
     <div class="mt-2 text-white small">Processing…</div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: KPI — Project List ═══════════ -->
+<div class="modal fade" id="modalKPIProjects" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="kpiProjectsTitle"><i class="fas fa-folder-open me-2"></i>Projects</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th style="width:2.5rem;" class="ps-3">#</th>
+              <th>Project Title</th>
+              <th>Supervisor(s)</th>
+              <th class="text-center" style="width:6rem;">Students</th>
+              <th>Program</th>
+            </tr>
+          </thead>
+          <tbody id="kpiProjectsList"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: KPI — Student List ═══════════ -->
+<div class="modal fade" id="modalKPIStudents" tabindex="-1">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="kpiStudentsTitle"><i class="fas fa-users me-2"></i>Active Students</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th style="width:2.5rem;" class="ps-3">#</th>
+              <th>Student Name</th>
+              <th>Student ID</th>
+              <th>Project</th>
+            </tr>
+          </thead>
+          <tbody id="kpiStudentsList"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
   </div>
 </div>
 

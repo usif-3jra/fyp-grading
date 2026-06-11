@@ -278,6 +278,58 @@ const App = {
     } catch (e) { console.warn('KPI load failed', e); }
   },
 
+  showProjects(type) {
+    const projects = Reg._projectsCache.filter(p => p.Type === type);
+    document.getElementById('kpiProjectsTitle').innerHTML =
+      `<i class="fas fa-folder-open me-2"></i>${type} Projects <span class="badge bg-${type === 'FYP1' ? 'primary' : 'success'} ms-2">${projects.length}</span>`;
+    const tbody = document.getElementById('kpiProjectsList');
+    if (!projects.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No ${type} projects found.</td></tr>`;
+    } else {
+      tbody.innerHTML = projects.map((p, i) => {
+        const supIds   = (p.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean);
+        const supNames = supIds.map(sid => {
+          const s = Reg.allSupervisors.find(x => x.id === sid);
+          return s ? s.name : sid;
+        }).join(', ') || '—';
+        const cnt = Reg._studentsCache.filter(s => s.ProjectID === p.ProjectID).length;
+        const programs = [...new Set(supIds.map(sid => {
+          const s = Reg.allSupervisors.find(x => x.id === sid);
+          return s ? s.program : '';
+        }).filter(Boolean))].join(', ') || p.ProgramType || '—';
+        return `<tr>
+          <td class="text-muted ps-3">${i + 1}</td>
+          <td class="fw-medium">${escHtml(p.Title)}</td>
+          <td class="small">${escHtml(supNames)}</td>
+          <td class="text-center"><span class="badge bg-secondary">${cnt}</span></td>
+          <td class="small text-muted">${escHtml(programs)}</td>
+        </tr>`;
+      }).join('');
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalKPIProjects')).show();
+  },
+
+  showStudents() {
+    const students = [...Reg._studentsCache].sort((a, b) => a.StudentName.localeCompare(b.StudentName));
+    document.getElementById('kpiStudentsTitle').innerHTML =
+      `<i class="fas fa-users me-2"></i>Active Students <span class="badge bg-secondary ms-2">${students.length}</span>`;
+    const tbody = document.getElementById('kpiStudentsList');
+    if (!students.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No students found.</td></tr>';
+    } else {
+      tbody.innerHTML = students.map((s, i) => {
+        const proj = Reg._projectsCache.find(p => p.ProjectID === s.ProjectID);
+        return `<tr>
+          <td class="text-muted ps-3">${i + 1}</td>
+          <td>${escHtml(s.StudentName)}</td>
+          <td class="font-monospace small text-muted">${escHtml(s.StudentID)}</td>
+          <td class="small">${proj ? escHtml(proj.Title) : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalKPIStudents')).show();
+  },
+
 };
 
 // ── Tab 1: Registration ───────────────────────────────────────────────
@@ -1039,6 +1091,28 @@ const TW = {
         <thead><tr><th>Criterion</th>${headerCells}</tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
+
+    if (!c._gradeClampSetup) {
+      c._gradeClampSetup = true;
+      c.addEventListener('change', e => {
+        const inp = e.target;
+        if (!inp.classList.contains('ind-grade') || inp.disabled) return;
+        const v = parseFloat(inp.value), max = parseFloat(inp.max);
+        if (isNaN(v) || inp.value === '') return;
+        const minAllowed = max * 0.45;
+        if (v < minAllowed) {
+          inp.value = minAllowed;
+          inp.style.outline = '';
+          Toast.show(`Grade automatically set to minimum ${minAllowed} — values below ${minAllowed} (Beginning level, 45% of ${max}) are not accepted.`, 'warning');
+        } else if (v > max) {
+          inp.value = max;
+          inp.style.outline = '';
+          Toast.show(`Grade automatically capped to maximum ${max}.`, 'warning');
+        } else {
+          inp.style.outline = '';
+        }
+      });
+    }
   },
 
   async submitGrades() {
@@ -1056,6 +1130,15 @@ const TW = {
       bootstrap.Modal.getOrCreateInstance(modal).show();
     });
     if (!confirmed) return;
+
+    // Auto-correct grades outside allowed range before submitting
+    [...document.querySelectorAll('.ind-grade')].forEach(inp => {
+      if (inp.value === '') return;
+      const v = parseFloat(inp.value), m = parseFloat(inp.max);
+      if (isNaN(v)) return;
+      if (v < m * 0.45) inp.value = m * 0.45;
+      else if (v > m) inp.value = m;
+    });
 
     const indGrades = [...document.querySelectorAll('.ind-grade')].map(inp => ({
       criterion: inp.dataset.criterion, studentId: inp.dataset.student, grade: parseFloat(inp.value) || 0,
