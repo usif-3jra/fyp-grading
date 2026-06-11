@@ -1153,11 +1153,11 @@ module.exports = async function handler(req, res) {
               if (!cg.length) return;
               cp.push((cg.filter(g => parseFloat(g.score || 0) >= 0.7 * parseFloat(c.max_grade || 100)).length / cg.length) * 100);
             });
-            if (!cp.length) return null;
+            if (!cp.length) return tag === '2b' ? { notMeasured: true } : null;
             const avg2 = cp.reduce((a, b) => a + b, 0) / cp.length;
             return { pct: rnd(avg2), level: avg2 < 60 ? 1 : avg2 < 70 ? 2 : avg2 < 85 ? 3 : 4 };
           }
-          abetByType[pt] = { abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet7a: computeABET2('7a'), abet7b: computeABET2('7b') };
+          abetByType[pt] = { abet1a: computeABET2('1a'), abet2a: computeABET2('2a'), abet2b: computeABET2('2b'), abet3a: computeABET2('3a'), abet3b: computeABET2('3b'), abet4a: computeABET2('4a'), abet5a: computeABET2('5a'), abet5b: computeABET2('5b'), abet7a: computeABET2('7a') };
         });
 
         const now = new Date();
@@ -1348,11 +1348,11 @@ module.exports = async function handler(req, res) {
             const cp = [];
             indRubric.filter(r => String(r.abetOutcome||'') === tag).forEach(c => { const gs = tIndG.filter(g => g.criterion === c.criterion); if (!gs.length) return; cp.push((gs.filter(g=>parseFloat(g.grade||0)>=0.7*c.maxGrade).length/gs.length)*100); });
             exCfg.filter(c => String(c.abet_outcome||'') === tag).forEach(c => { const cg = tExG.filter(g => g.criterion === c.criterion_name); if (!cg.length) return; cp.push((cg.filter(g=>parseFloat(g.score||0)>=0.7*parseFloat(c.max_grade||100)).length/cg.length)*100); });
-            if (!cp.length) return null;
+            if (!cp.length) return tag === '2b' ? { notMeasured: true } : null;
             const avg2 = cp.reduce((a,b)=>a+b,0)/cp.length;
             return { pct: rnd(avg2), level: avg2<60?1:avg2<70?2:avg2<85?3:4 };
           }
-          abetByType[pt] = { abet5a: computeABET('5a'), abet5b: computeABET('5b'), abet2a: computeABET('2a'), abet2b: computeABET('2b'), abet7a: computeABET('7a'), abet7b: computeABET('7b') };
+          abetByType[pt] = { abet1a: computeABET('1a'), abet2a: computeABET('2a'), abet2b: computeABET('2b'), abet3a: computeABET('3a'), abet3b: computeABET('3b'), abet4a: computeABET('4a'), abet5a: computeABET('5a'), abet5b: computeABET('5b'), abet7a: computeABET('7a') };
         });
 
         const statsByType = {};

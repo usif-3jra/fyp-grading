@@ -723,7 +723,7 @@ const TW = {
     questions.forEach(q => {
       const row = document.createElement('div');
       row.className = 'peer-q-row';
-      const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o =>
+      const aOpts = ['','1a','2a','2b','3a','3b','4a','5a','5b','7a'].map(o =>
         `<option value="${o}" ${String(q.AbetOutcome||'') === o ? 'selected' : ''}>${o || 'None'}</option>`
       ).join('');
       row.innerHTML = `
@@ -740,7 +740,7 @@ const TW = {
     if (!Auth.supervisor || !Auth.supervisor.isAdmin) { Toast.show('Only admins can add questions.', 'warning'); return; }
     const row = document.createElement('div');
     row.className = 'peer-q-row';
-    const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
+    const aOpts = ['','1a','2a','2b','3a','3b','4a','5a','5b','7a'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
     row.innerHTML = `
       <input type="text"   class="form-control form-control-sm pq-text"   placeholder="Question text"/>
       <input type="number" class="form-control form-control-sm pq-max"    value="10" min="1" max="100" title="Max Grade"/>
@@ -1045,7 +1045,7 @@ const TW = {
     const dis = isAdmin ? '' : 'disabled';
     const ro  = isAdmin ? '' : 'readonly';
     c.innerHTML = (criteria || []).map(cr => {
-      const sel = ['','5a','5b','2a','2b','7a','7b'].map(o =>
+      const sel = ['','1a','2a','2b','3a','3b','4a','5a','5b','7a'].map(o =>
         `<option value="${o}" ${String(cr.abetOutcome||'') === o ? 'selected' : ''}>${o || 'None'}</option>`
       ).join('');
       return `<div class="tw-rubric-row">
@@ -1063,7 +1063,7 @@ const TW = {
     const c = document.getElementById(type === 'group' ? 'twGroupRubricList' : 'twIndivRubricList');
     const row = document.createElement('div');
     row.className = 'tw-rubric-row';
-    const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
+    const aOpts = ['','1a','2a','2b','3a','3b','4a','5a','5b','7a'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
     row.innerHTML = `
       <input type="text"   class="form-control form-control-sm tw-criterion" placeholder="Criterion name" style="flex:1;min-width:140px;"/>
       <input type="number" class="form-control form-control-sm tw-max"    value="25" min="1" max="1000" title="Max Grade" style="width:72px;"/>
@@ -1392,7 +1392,7 @@ const Ex = {
       const row   = document.createElement('div');
       row.className = 'rubric-row';
       const dis = isAdmin ? '' : 'disabled';
-      const abetOpts = ['','5a','5b','2a','2b','7a','7b'].map(o =>
+      const abetOpts = ['','1a','2a','2b','3a','3b','4a','5a','5b','7a'].map(o =>
         `<option value="${o}" ${abet === o ? 'selected' : ''}>${o || 'None'}</option>`
       ).join('');
       row.innerHTML = `
@@ -1419,7 +1419,7 @@ const Ex = {
     const c   = document.getElementById(id);
     const row = document.createElement('div');
     row.className = 'rubric-row';
-    const aOpts = ['','5a','5b','2a','2b','7a','7b'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
+    const aOpts = ['','1a','2a','2b','3a','3b','4a','5a','5b','7a'].map(o => `<option value="${o}">${o || 'None'}</option>`).join('');
     row.innerHTML = `
       <select class="form-select form-select-sm rc-cat"><option>Report</option><option>Presentation</option></select>
       <input type="text"   class="form-control form-control-sm rc-name"   placeholder="Criterion name"/>
@@ -1656,14 +1656,20 @@ const Res = {
     const sdPct   = Math.min(100, (sd / 30) * 100);
     const m5pct   = ((5  / 30) * 100).toFixed(2);
     const m15pct  = ((15 / 30) * 100).toFixed(2);
-    const abetKeys   = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
-    const abetLabels = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
+    const abetKeys   = ['abet1a','abet2a','abet2b','abet3a','abet3b','abet4a','abet5a','abet5b','abet7a'];
+    const abetLabels = { abet1a:'1a', abet2a:'2a', abet2b:'2b', abet3a:'3a', abet3b:'3b', abet4a:'4a', abet5a:'5a', abet5b:'5b', abet7a:'7a' };
     const lvlColors  = ['','#fee2e2','#fef3c7','#dbeafe','#d1fae5'];
     const lvlLabels  = ['','Level 1','Level 2','Level 3','Level 4'];
     const abetRows   = abet
       ? abetKeys.map(k => {
           const v = abet[k];
           if (!v) return '';
+          if (v.notMeasured) return `<div class="d-flex align-items-center justify-content-between py-2 border-bottom" style="font-size:13px;">
+            <span class="fw-medium">Outcome ${abetLabels[k]}</span>
+            <div class="d-flex align-items-center gap-2">
+              <span class="text-muted small fst-italic">Not measured for this year</span>
+            </div>
+          </div>`;
           const bg  = lvlColors[v.level] || '#f3f4f6';
           const lbl = lvlLabels[v.level] || '—';
           return `<div class="d-flex align-items-center justify-content-between py-2 border-bottom" style="font-size:13px;">
@@ -1764,8 +1770,8 @@ const Res = {
       const green  = [22, 163, 74];
       const dkBlue = [50, 90, 140];
       const lvlLbl = ['', 'Level 1 — Beginning', 'Level 2 — Developing', 'Level 3 — Accomplished', 'Level 4 — Exemplary'];
-      const abetKeys = ['abet5a','abet5b','abet2a','abet2b','abet7a','abet7b'];
-      const abetLbl  = { abet5a:'5a', abet5b:'5b', abet2a:'2a', abet2b:'2b', abet7a:'7a', abet7b:'7b' };
+      const abetKeys = ['abet1a','abet2a','abet2b','abet3a','abet3b','abet4a','abet5a','abet5b','abet7a'];
+      const abetLbl  = { abet1a:'1a', abet2a:'2a', abet2b:'2b', abet3a:'3a', abet3b:'3b', abet4a:'4a', abet5a:'5a', abet5b:'5b', abet7a:'7a' };
       const meta = res.meta || {};
       const genDate = new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
       const yr   = (meta.year || String(new Date().getFullYear())).replace('–','-');
@@ -2004,6 +2010,7 @@ const Res = {
           const abetRows = abetKeys.map(k => {
             const v = tAbet[k];
             if (!v) return null;
+            if (v.notMeasured) return [`Outcome ${abetLbl[k]}`, 'N/M', 'Not measured for this year'];
             return [`Outcome ${abetLbl[k]}`, `${v.pct}%`, lvlLbl[v.level] || '—'];
           }).filter(Boolean);
           if (abetRows.length) {
