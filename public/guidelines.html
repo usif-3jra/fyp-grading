@@ -514,7 +514,7 @@
       <div class="step-body">
         <h4>Set Up the Examiner Rubric</h4>
         <p>Go to <strong>Assign Examiners → Grading Rubric</strong>. Add criteria for FYP1 and FYP2 separately for both Report and Presentation categories. Assign each criterion a max grade, weight, scope (Individual or Group), and an ABET outcome tag.</p>
-        <div class="tip"><i class="fas fa-info-circle me-1"></i>Each criterion can be linked to one ABET outcome (e.g. 5a, 4a). Outcomes appear in the results and PDF only for FYP types that have at least one criterion mapped to them — outcomes with no linked criteria are automatically hidden for that type.</div>
+        <div class="tip"><i class="fas fa-info-circle me-1"></i>Each criterion can be linked to one ABET outcome (e.g. 1a, 3a, 5a). Outcomes appear in the results and PDF only for FYP types that have at least one criterion mapped to them — outcomes with no linked criteria are automatically hidden for that type. Outcome 2b (Feasibility Study) is always shown as <em>Not measured for this year</em> until its rubric criterion is added.</div>
         <div class="warn"><i class="fas fa-exclamation-triangle me-1"></i>All criterion grades must be at least 45% of the maximum. The system enforces this automatically.</div>
       </div>
     </div>
@@ -952,51 +952,99 @@
       </thead>
       <tbody>
 
-        <!-- shared pill styles as inline style shorthand -->
-        <!-- green pill = rpt, yellow = tw, dash = none -->
+        <!-- 1a -->
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">1a</span>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Identify and formulate a clear engineering problem, defining objectives, scope, and specifications.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Problem Statement</span></div>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
+          </td>
+        </tr>
 
         <!-- 2a -->
-        <tr style="border-bottom:1px solid #e5e7eb;">
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
           <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
             <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">2a</span>
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
-            Define the design system specifications and constraints. Explain the methodologies and available resources to achieve design intent.
+            Identify and document the necessary resources, tools, software, and hardware required to execute the engineering project.
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
-            <div style="margin-bottom:4px;"><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Methodology</span></div>
-            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Technical &amp; Non-technical Constraints</span></div>
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">List of Resources Needed</span></div>
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
-          <td style="padding:10px 12px;text-align:center;vertical-align:top;">
-            <div style="display:flex;flex-direction:column;gap:5px;align-items:center;">
-              <span style="background:#dcfce7;color:#166534;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;">FYP1 &amp; FYP2</span>
-              <span style="background:#e0e7ff;color:#3730a3;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:700;white-space:nowrap;">FYP2 only</span>
-            </div>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
           </td>
         </tr>
 
         <!-- 2b -->
-        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+        <tr style="border-bottom:1px solid #e5e7eb;">
           <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
             <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">2b</span>
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
-            Design decisions should consider safety, economic analysis, and environmental concerns.
+            Evaluate the technical and economic feasibility of the proposed engineering solution.
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
-            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Standards</span></div>
+            <div style="margin-bottom:3px;"><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Feasibility Study</span></div>
+            <div><span style="background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:5px;font-size:10px;font-style:italic;display:inline-block;">Not measured for this year</span></div>
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
           <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
-            <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span>
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
+          </td>
+        </tr>
+
+        <!-- 3a -->
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">3a</span>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Present and demonstrate the engineering project effectively, showcasing key design decisions, results, and their significance.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#ede9fe;color:#5b21b6;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Presentation Total Grade</span></div>
+          </td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
+          </td>
+        </tr>
+
+        <!-- 3b -->
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">3b</span>
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
+            Communicate engineering solutions and findings clearly and professionally through oral presentation.
+          </td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
+          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
+            <div><span style="background:#ede9fe;color:#5b21b6;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Oral Communication</span></div>
+          </td>
+          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
+            <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
           </td>
         </tr>
 
         <!-- 4a -->
-        <tr style="border-bottom:1px solid #e5e7eb;">
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
           <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
             <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">4a</span>
           </td>
@@ -1014,7 +1062,7 @@
         </tr>
 
         <!-- 5a -->
-        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+        <tr style="border-bottom:1px solid #e5e7eb;">
           <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
             <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">5a</span>
           </td>
@@ -1036,7 +1084,7 @@
         </tr>
 
         <!-- 5b -->
-        <tr style="border-bottom:1px solid #e5e7eb;">
+        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
           <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
             <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">5b</span>
           </td>
@@ -1058,38 +1106,21 @@
         </tr>
 
         <!-- 7a -->
-        <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb;">
+        <tr>
           <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
             <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">7a</span>
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
-            Demonstrate the ability to access and utilize information from multiple external sources, for validity and synthesizing information.
+            Demonstrate the ability to access, evaluate, and synthesize information from multiple external sources through systematic literature review and proper referencing.
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
-            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">List of Resources Needed</span></div>
+            <div style="margin-bottom:4px;"><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Literature Review</span></div>
+            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">References</span></div>
           </td>
           <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
           <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
             <span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP1 &amp; FYP2</span>
-          </td>
-        </tr>
-
-        <!-- 7b -->
-        <tr style="background:#f9fafb;">
-          <td style="padding:10px 12px;text-align:center;border-right:1px solid #e5e7eb;vertical-align:top;">
-            <span style="background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:12px;font-weight:700;font-size:12px;">7b</span>
-          </td>
-          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;color:#374151;line-height:1.55;">
-            Use engineering up-to-date software and simulators and apply them to solve engineering problems.
-          </td>
-          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
-          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:top;">
-            <div><span style="background:#f0fdf4;color:#166534;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;display:inline-block;">Contribution</span></div>
-          </td>
-          <td style="padding:10px 12px;border-right:1px solid #e5e7eb;vertical-align:middle;text-align:center;color:#9ca3af;font-size:12px;">—</td>
-          <td style="padding:10px 12px;text-align:center;vertical-align:top;white-space:nowrap;">
-            <span style="background:#e0e7ff;color:#3730a3;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">FYP2 only</span>
           </td>
         </tr>
 
@@ -1161,7 +1192,7 @@
       <ol style="font-size:13px;color:#374151;margin:0;padding-left:18px;line-height:1.8;">
         <li>Go to <strong>Assign Examiners → Grading Rubric</strong> (for Report / Presentation criteria) or <strong>Teamwork → Rubric Config</strong> (for Individual criteria).</li>
         <li>In each criterion row, find the <strong>ABET</strong> dropdown column.</li>
-        <li>Select the outcome tag (e.g. <code>5a</code>, <code>4a</code>) that this criterion assesses. Leave it blank if the criterion is not mapped to any outcome.</li>
+        <li>Select the outcome tag (e.g. <code>1a</code>, <code>5a</code>, <code>3b</code>) that this criterion assesses. Leave it blank if the criterion is not mapped to any outcome.</li>
         <li>Save the rubric. The system will compute attainment for all mapped outcomes when final results are loaded.</li>
       </ol>
       <p style="font-size:12px;color:#6b7280;margin-top:8px;margin-bottom:0;"><i class="fas fa-info-circle me-1"></i>The same outcome can be tagged on multiple criteria — attainment is averaged across all of them. Outcomes not tagged on any criterion for a given FYP type are hidden from results and the PDF for that type.</p>
