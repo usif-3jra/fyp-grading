@@ -1316,7 +1316,7 @@ const Ex = {
     if (!emailVal && !nameVal) return;
     const match = this.allSupsCache.find(s =>
       (emailVal && s.email.toLowerCase() === emailVal) ||
-      (nameVal  && s.name.toLowerCase()  === nameVal)
+      (nameVal && nameVal.includes(' ') && s.name.toLowerCase() === nameVal)
     );
     if (!match) return;
     if (type === 'Industry') {
