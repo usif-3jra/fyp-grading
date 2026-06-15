@@ -284,16 +284,21 @@ document.getElementById('evalForm').addEventListener('submit', function(e) {
   let valid = true;
 
   document.querySelectorAll('.peer-grade').forEach(sel => {
-    if (sel.value === '') {
+    const val = parseFloat(sel.value);
+    const maxAllowed = Math.min(parseFloat(sel.dataset.max || 10), 10);
+    if (sel.value === '' || isNaN(val)) {
+      sel.style.borderColor = '#dc2626';
+      valid = false;
+    } else if (val < 0 || val > maxAllowed) {
       sel.style.borderColor = '#dc2626';
       valid = false;
     } else {
       sel.style.borderColor = '';
-      grades.push({ evaluatedId: sel.dataset.evaluated, questionNo: sel.dataset.question, grade: parseFloat(sel.value), projectId: _studentData.project.id });
+      grades.push({ evaluatedId: sel.dataset.evaluated, questionNo: sel.dataset.question, grade: val, projectId: _studentData.project.id });
     }
   });
 
-  if (!valid) { showEvalError('Please select a grade for every question.'); return; }
+  if (!valid) { showEvalError('Please select a valid grade (0–10) for every question.'); return; }
 
   const btn = this.querySelector('button[type="submit"]');
   btn.disabled = true;

@@ -1732,18 +1732,54 @@ const Res = {
     const type    = document.getElementById('res-filter-type').value;
     const program = document.getElementById('res-filter-program').value;
     let filtered = this.allResults;
-    if (type)    filtered = filtered.filter(r => r.projectType    === type);
-    if (program) filtered = filtered.filter(r => r.projectProgram === program);
+    if (type) filtered = filtered.filter(r => r.projectType === type);
+    if (program) filtered = filtered.filter(r => {
+      if (r.projectProgram === program) return true;
+      const proj = Reg._projectsCache.find(p => p.Title === r.projectTitle);
+      if (!proj) return false;
+      const supIds = (proj.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean);
+      return supIds.some(sid => {
+        const sup = Reg.allSupervisors.find(s => s.id === sid);
+        return sup && sup.program === program;
+      });
+    });
     this._render(filtered);
-    this._renderSummary(this.abetByType, this.statsByType);
+    this._renderSummary(this.abetByType, program ? this._computeStats(filtered) : this.statsByType);
+  },
+
+  _computeStats(data) {
+    const byType = {};
+    for (const pt of ['FYP1', 'FYP2']) {
+      const grades = data
+        .filter(r => r.projectType === pt && r.finalGrade != null)
+        .map(r => parseFloat(r.finalGrade))
+        .filter(v => !isNaN(v));
+      if (!grades.length) continue;
+      const count = grades.length;
+      const mean  = grades.reduce((a, b) => a + b, 0) / count;
+      const sd    = Math.sqrt(grades.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / count);
+      byType[pt]  = { count, mean: mean.toFixed(2), sd: parseFloat(sd.toFixed(2)) };
+    }
+    return byType;
   },
 
   _populateProgramFilter() {
     const sel = document.getElementById('res-filter-program');
     if (!sel) return;
-    const programs = [...new Set(this.allResults.map(r => r.projectProgram).filter(Boolean))].sort();
+    const programs = new Set();
+    this.allResults.forEach(r => {
+      if (r.projectProgram) programs.add(r.projectProgram);
+      const proj = Reg._projectsCache.find(p => p.Title === r.projectTitle);
+      if (proj) {
+        (proj.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean).forEach(sid => {
+          const sup = Reg.allSupervisors.find(s => s.id === sid);
+          if (sup && sup.program) programs.add(sup.program);
+        });
+      }
+    });
+    const sorted = [...programs].sort();
     const current = sel.value;
-    sel.innerHTML = '<option value="">All Programs</option>' + programs.map(p => `<option${p === current ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
+    sel.innerHTML = '<option value="">All Programs</option>' + sorted.map(p => `<option${p === current ? ' selected' : ''}>${escHtml(p)}</option>`).join('');
   },
 
   _showIncomplete(incompleteByType) {
@@ -1805,9 +1841,7 @@ const Res = {
     }
     tbody.innerHTML = data.map((r, i) => {
       const lc = r.letterGrade.replace('+', '-plus').replace(/-$/, '-minus');
-      const boostCell = r.boosted
-        ? `<td class="text-center"><span class="badge bg-warning text-dark" title="Grade boundary reached — auto-incremented by 1">+1 ↑</span></td>`
-        : `<td class="text-center text-muted">—</td>`;
+      const boostedGrade = r.finalGrade + (r.boosted ? 1 : 0);
       return `<tr>
         <td>${i + 1}</td>
         <td class="fw-medium">${escHtml(r.studentName)}</td>
@@ -1817,8 +1851,8 @@ const Res = {
         <td>${r.teamworkPct}%</td>
         <td>${r.reportPct}%</td>
         <td>${r.presPct}%</td>
-        <td class="fw-bold">${r.finalGrade}%</td>
-        ${boostCell}
+        <td>${r.finalGrade}%</td>
+        <td class="fw-bold">${boostedGrade}%${r.boosted ? ' <span class="badge bg-warning text-dark ms-1" title="Grade boundary boost applied" style="font-size:10px;">↑</span>' : ''}</td>
         <td class="text-center"><span class="grade-${escHtml(lc)} px-2 py-1 rounded">${escHtml(r.letterGrade)}</span></td>
       </tr>`;
     }).join('');
@@ -2010,10 +2044,13 @@ const Res = {
       };
 
       // Draw a per-examiner table (Report or Presentation)
-      const drawExamTable = (doc, y, label, table, hdrColor, hdrSub) => {
+      const drawExamTable = (doc, y, label, table, hdrColor, hdrSub, anonymize = false) => {
         if (!table || !table.rows.length) return y;
         y = sectionLabel(doc, y, label);
-        const nEx  = table.examiners.length;
+        const examHeaders = anonymize
+          ? table.examiners.map((_, i) => `Examiner ${i + 1}`)
+          : table.examiners;
+        const nEx  = examHeaders.length;
         const numW = 7, maxW = 15, weiW = 15;
         const exW  = Math.max(18, Math.min(32, (cW - numW - maxW - weiW - 40) / Math.max(nEx, 1)));
         const critW = cW - numW - maxW - weiW - exW * nEx;
@@ -2027,12 +2064,14 @@ const Res = {
           bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
           footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
           columnStyles: colSty,
-          head: [['#', 'Criterion', ...table.examiners, 'Max', 'Wt%']],
+          head: [['#', 'Criterion', ...examHeaders, 'Max', 'Wt%']],
           body: table.rows.map(r => [r.num, r.criterion + (r.scope === 'Group' ? ' [G]' : ''), ...r.scores.map(s => s !== null ? s : '—'), r.maxGrade, `${r.weight}%`]),
           foot: [[{ content: hdrSub + ' Grade', colSpan: 2 + nEx, styles: { halign: 'right' } }, { content: `${table.pct}%`, colSpan: 2, styles: { halign: 'center' } }]],
         });
         return doc.lastAutoTable.finalY + 3;
       };
+
+      const isAdminUser = Auth.supervisor && Auth.supervisor.isAdmin;
 
       // ── Generate one PDF per FYP type ─────────────────────────────────────
       for (const fypType of ['FYP1', 'FYP2']) {
@@ -2119,8 +2158,8 @@ const Res = {
             }
 
             // Examiner tables
-            y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report');
-            y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation');
+            y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report',       !isAdminUser);
+            y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation', !isAdminUser);
 
             // Grade summary
             y = sectionLabel(doc, y, 'Grade Summary');
@@ -2128,10 +2167,9 @@ const Res = {
               startY: y, margin: { left: margin, right: margin }, theme: 'grid',
               headStyles: { fillColor: green, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
               bodyStyles: { fontSize: 9, fontStyle: 'bold', cellPadding: 2.5, halign: 'center' },
-              columnStyles: { 0:{cellWidth:cW*0.2}, 1:{cellWidth:cW*0.2}, 2:{cellWidth:cW*0.2}, 3:{cellWidth:cW*0.2}, 4:{cellWidth:cW*0.2} },
-              head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Final Grade', 'Boost', 'Letter Grade']],
-              columnStyles: { 0:{cellWidth:cW*0.18}, 1:{cellWidth:cW*0.18}, 2:{cellWidth:cW*0.18}, 3:{cellWidth:cW*0.18}, 4:{cellWidth:cW*0.1}, 5:{cellWidth:cW*0.18} },
-              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, stu.summary.boosted ? '+1 ↑' : '—', stu.summary.letterGrade]],
+              columnStyles: { 0:{cellWidth:cW*0.18}, 1:{cellWidth:cW*0.18}, 2:{cellWidth:cW*0.18}, 3:{cellWidth:cW*0.15}, 4:{cellWidth:cW*0.15}, 5:{cellWidth:cW*0.16} },
+              head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Weighted %', 'Final Grade', 'Letter Grade']],
+              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, `${stu.summary.finalGrade + (stu.summary.boosted ? 1 : 0)}%${stu.summary.boosted ? ' ↑' : ''}`, stu.summary.letterGrade]],
             });
           }
         }
