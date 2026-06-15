@@ -2093,7 +2093,7 @@ const Res = {
             ++_sumIdx, s.studentName, s.studentId, proj.title,
             `${s.summary.teamworkPct}%`, `${s.summary.reportPct}%`, `${s.summary.presPct}%`,
             `${s.summary.finalGrade}%`,
-            `${s.summary.finalGrade + (s.summary.boosted ? 1 : 0)}%${s.summary.boosted ? ' ↑' : ''}`,
+            `${s.summary.finalGrade + (s.summary.boosted ? 1 : 0)}%${s.summary.boosted ? ' (+1)' : ''}`,
             s.summary.letterGrade,
           ])
         );
@@ -2101,7 +2101,7 @@ const Res = {
           startY: y, margin: { left: margin, right: margin }, theme: 'grid',
           headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
           bodyStyles: { fontSize: 7.5, cellPadding: 2 },
-          columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:cW*0.19}, 2:{cellWidth:cW*0.12,halign:'center'}, 3:{cellWidth:cW*0.21}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'}, 7:{halign:'center'}, 8:{halign:'center',fontStyle:'bold'}, 9:{halign:'center',fontStyle:'bold'} },
+          columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:cW*0.19}, 2:{cellWidth:cW*0.12,halign:'center'}, 3:{cellWidth:cW*0.21}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'}, 7:{halign:'center'}, 8:{cellWidth:cW*0.14,halign:'center',fontStyle:'bold'}, 9:{halign:'center',fontStyle:'bold'} },
           head: [['#', 'Student Name', 'Student ID', 'Project Title', `TW (${meta.weights?.tw??35}%)`, `Report (${meta.weights?.report??35}%)`, `Pres (${meta.weights?.pres??30}%)`, 'Weighted %', 'Final Grade', 'Letter']],
           body: _sumRows,
         });
@@ -2286,7 +2286,7 @@ const Res = {
               bodyStyles: { fontSize: 9, fontStyle: 'bold', cellPadding: 2.5, halign: 'center' },
               columnStyles: { 0:{cellWidth:cW*0.18}, 1:{cellWidth:cW*0.18}, 2:{cellWidth:cW*0.18}, 3:{cellWidth:cW*0.15}, 4:{cellWidth:cW*0.15}, 5:{cellWidth:cW*0.16} },
               head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Weighted %', 'Final Grade', 'Letter Grade']],
-              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, `${stu.summary.finalGrade + (stu.summary.boosted ? 1 : 0)}%${stu.summary.boosted ? ' ↑' : ''}`, stu.summary.letterGrade]],
+              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, `${stu.summary.finalGrade + (stu.summary.boosted ? 1 : 0)}%${stu.summary.boosted ? ' (+1)' : ''}`, stu.summary.letterGrade]],
             });
           }
         }
