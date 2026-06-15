@@ -879,13 +879,14 @@ const TW = {
   async saveConfig() {
     Spinner.show();
     try {
-      await gsrAuth('saveTeamworkConfig', {
+      const res = await gsrAuth('saveTeamworkConfig', {
         teamwork_weight:     document.getElementById('cfg-tw-weight').value,
         report_weight:       document.getElementById('cfg-report-weight').value,
         presentation_weight: document.getElementById('cfg-pres-weight').value,
         peer_eval_weight:    document.getElementById('cfg-peer-weight').value,
         supervisor_weight:   document.getElementById('cfg-sup-weight').value,
       });
+      if (res && !res.success) { Toast.show(res.message || 'Failed to save weights.', 'warning'); return; }
       Toast.show('Grade weights saved.');
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
@@ -1848,7 +1849,7 @@ const Res = {
         <td><code>${escHtml(r.studentId)}</code></td>
         <td>${escHtml(r.projectTitle)}</td>
         <td><span class="badge ${r.projectType === 'FYP1' ? 'bg-primary' : 'bg-success'}">${escHtml(r.projectType)}</span></td>
-        <td>${r.teamworkPct}%</td>
+        <td>${r.teamworkPct}%${r.peerWarning ? ' <span title="No peer evaluations received — peer component counted as 0%" style="cursor:help;color:#d97706;font-weight:bold;">&#9888;</span>' : ''}</td>
         <td>${r.reportPct}%</td>
         <td>${r.presPct}%</td>
         <td>${r.finalGrade}%</td>
@@ -2232,6 +2233,7 @@ const Res = {
           for (const stu of proj.students) {
             doc.addPage();
             y = drawHdr(doc, `${fypType} — ${proj.title}`);
+            const soloProj = proj.students.length === 1;
 
             // Student header
             doc.setFillColor(...blue);
@@ -2252,14 +2254,16 @@ const Res = {
               head: [['#', 'Criterion', 'Grade', 'Max']],
               body: stu.twDetails.map(d => [d.num, d.criterion, d.grade, d.maxGrade]),
               foot: [
-                [{ content: 'Peer Evaluation Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, colSpan: 2, styles: { halign: 'center' } }],
+                soloProj
+                  ? [{ content: 'Solo Project — Peer Evaluation: N/A (Supervisor weight 100%)', colSpan: 4, styles: { halign: 'center', fontStyle: 'italic', textColor: [100, 100, 100] } }]
+                  : [{ content: 'Peer Evaluation Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, colSpan: 2, styles: { halign: 'center' } }],
                 [{ content: 'Overall Teamwork Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.twScore}%`, colSpan: 2, styles: { halign: 'center' } }],
               ],
             });
             y = doc.lastAutoTable.finalY + 3;
 
             // Peer evaluation question breakdown
-            if (stu.peerDetails && stu.peerDetails.length) {
+            if (stu.peerDetails && stu.peerDetails.length && !soloProj) {
               y = sectionLabel(doc, y, 'Peer Evaluation — Question Breakdown (Average of Peers)');
               doc.autoTable({
                 startY: y, margin: { left: margin, right: margin }, theme: 'grid',

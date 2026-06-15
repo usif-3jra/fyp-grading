@@ -527,6 +527,15 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
         if (!session.is_admin) return ok({ success: false, message: 'Only the admin can change grade weights.' });
+        const twV   = parseFloat(updates.teamwork_weight     || 0);
+        const repV  = parseFloat(updates.report_weight       || 0);
+        const presV = parseFloat(updates.presentation_weight || 0);
+        const supV  = parseFloat(updates.supervisor_weight   || 0);
+        const peerV = parseFloat(updates.peer_eval_weight    || 0);
+        if (Math.round(twV + repV + presV) !== 100)
+          return ok({ success: false, message: `Teamwork + Report + Presentation must sum to 100% (currently ${twV + repV + presV}%).` });
+        if (Math.round(supV + peerV) !== 100)
+          return ok({ success: false, message: `Supervisor + Peer Eval portions must sum to 100% (currently ${supV + peerV}%).` });
         for (const [key, value] of Object.entries(updates || {})) {
           await sql`INSERT INTO tw_config (config_key, config_value) VALUES (${key}, ${String(value)}) ON CONFLICT (config_key) DO UPDATE SET config_value = ${String(value)}`;
         }
@@ -1121,6 +1130,7 @@ module.exports = async function handler(req, res) {
 
             return {
               studentId: sid, studentName: student.student_name,
+              isSolo: projStudents.length === 1,
               twDetails, peerDetails, indPct: rnd(indPct), peerPct: rnd(peerPct), twScore: rnd(twScore),
               repTable, presTable,
               summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: Math.round(final), boosted: GRADE_BORDERS.includes(Math.round(final)), letterGrade: letterGrade(final) },
@@ -1297,7 +1307,7 @@ module.exports = async function handler(req, res) {
 
         const results = showableStudents.map(student => {
           const project = projects.find(p => p.project_id === student.project_id);
-          const pt      = project ? String(project.type || '') : '';
+          const pt      = project ? String(project.type || 'FYP1') : 'FYP1';
 
           const ind    = twGrades.filter(g => g.student_id === student.student_id && g.grade_type === 'Individual');
           const indMax = indRubric.reduce((s, r) => s + Number(r.maxGrade||25), 0) || 100;
@@ -1340,10 +1350,11 @@ module.exports = async function handler(req, res) {
           return {
             studentId: student.student_id, studentName: student.student_name,
             projectId: student.project_id, projectTitle: project ? project.title : '—',
-            projectType: pt || '—', projectProgram: project ? (project.program_type || '') : '',
+            projectType: pt, projectProgram: project ? (project.program_type || '') : '',
             teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct),
             finalGrade: finalRounded, boosted: GRADE_BORDERS.includes(finalRounded),
             letterGrade: letterGrade(final),
+            isSolo, peerWarning: !isSolo && peer.length === 0,
           };
         });
 
