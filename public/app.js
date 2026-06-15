@@ -1688,6 +1688,8 @@ const Res = {
   statsByType: {},
 
   async load() {
+    const _expBtn = document.getElementById('btn-export-results');
+    if (_expBtn) _expBtn.disabled = true;
     Spinner.show();
     try {
       const res = await gsrAuth('getFinalResults');
@@ -1718,9 +1720,6 @@ const Res = {
         this._showPartialPending(res.partialPendingByType);
       }
 
-      const exportBtn = document.getElementById('btn-export-results');
-      if (exportBtn) exportBtn.disabled = res.results.length === 0;
-
       const notes = [];
       if (res.completeTypes && res.completeTypes.length) notes.push(`${res.completeTypes.join(' & ')} complete`);
       if (res.partialPendingByType && Object.keys(res.partialPendingByType).length) notes.push('partial unlock active');
@@ -1746,6 +1745,8 @@ const Res = {
     });
     this._render(filtered);
     this._renderSummary(this.abetByType, program ? this._computeStats(filtered) : this.statsByType);
+    const expBtn = document.getElementById('btn-export-results');
+    if (expBtn) expBtn.disabled = filtered.length === 0;
   },
 
   _computeStats(data) {
