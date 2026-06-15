@@ -1983,6 +1983,10 @@ const Res = {
       if (programFilter) exportProjects = exportProjects.filter(p => (p.program || '') === programFilter);
       if (!exportProjects.length) { Toast.show('No projects for selected program.', 'warning'); return; }
 
+      // Apply type filter from UI (respects dropdown selection)
+      const typeFilter = document.getElementById('res-filter-type')?.value || '';
+      const fypTypesToExport = typeFilter ? [typeFilter] : ['FYP1', 'FYP2'].filter(pt => exportProjects.some(p => p.type === pt));
+
       // Load university logo (preserve aspect ratio)
       const logoUrl = 'https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png';
       const loadImg = async url => {
@@ -2074,17 +2078,37 @@ const Res = {
       const isAdminUser = Auth.supervisor && Auth.supervisor.isAdmin;
 
       // ── Generate one PDF per FYP type ─────────────────────────────────────
-      for (const fypType of ['FYP1', 'FYP2']) {
+      for (const fypType of fypTypesToExport) {
         const typeProjects = exportProjects.filter(p => p.type === fypType);
         if (!typeProjects.length) continue;
 
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        let firstProj = true;
+
+        // ── Page 1: Student grade summary (matches results tab) ──────────────
+        let y = drawHdr(doc, `${fypType} — Assessment Report`);
+        y = sectionLabel(doc, y, 'Student Grade Summary');
+        let _sumIdx = 0;
+        const _sumRows = typeProjects.flatMap(proj =>
+          proj.students.map(s => [
+            ++_sumIdx, s.studentName, s.studentId, proj.title,
+            `${s.summary.teamworkPct}%`, `${s.summary.reportPct}%`, `${s.summary.presPct}%`,
+            `${s.summary.finalGrade}%`,
+            `${s.summary.finalGrade + (s.summary.boosted ? 1 : 0)}%${s.summary.boosted ? ' ↑' : ''}`,
+            s.summary.letterGrade,
+          ])
+        );
+        doc.autoTable({
+          startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+          headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
+          bodyStyles: { fontSize: 7.5, cellPadding: 2 },
+          columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:cW*0.19}, 2:{cellWidth:cW*0.12,halign:'center'}, 3:{cellWidth:cW*0.21}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'}, 7:{halign:'center'}, 8:{halign:'center',fontStyle:'bold'}, 9:{halign:'center',fontStyle:'bold'} },
+          head: [['#', 'Student Name', 'Student ID', 'Project Title', `TW (${meta.weights?.tw??35}%)`, `Report (${meta.weights?.report??35}%)`, `Pres (${meta.weights?.pres??30}%)`, 'Weighted %', 'Final Grade', 'Letter']],
+          body: _sumRows,
+        });
 
         for (const proj of typeProjects) {
           // ── Project overview page ─────────────────────────────────────────
-          if (!firstProj) doc.addPage();
-          firstProj = false;
+          doc.addPage();
           let y = drawHdr(doc, `${fypType} — Assessment Report`);
 
           // Project banner (auto-expand for long titles)
