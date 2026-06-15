@@ -1104,7 +1104,8 @@ module.exports = async function handler(req, res) {
             const maxPeer   = peerCfg.reduce((s, q) => s + parseFloat(q.max_grade || 10), 0);
             const peerCount = peerCfg.length || 1;
             const peerPct   = pct(peer.reduce((s, e) => s + parseFloat(e.grade || 0), 0), maxPeer * (peer.length / peerCount));
-            const twScore   = (indPct * supW) + (peerPct * peerW);
+            const isSolo    = projStudents.length === 1;
+            const twScore   = isSolo ? indPct : (indPct * supW) + (peerPct * peerW);
 
             const peerDetails = peerCfg.map((q, idx) => {
               const qGrades = peer.filter(e => String(e.question_no) === String(q.question_no));
@@ -1209,8 +1210,10 @@ module.exports = async function handler(req, res) {
           const projStudents = allStudents.filter(s => s.project_id === pid);
           const missing = [];
 
-          const peerSubmitters = new Set(peerEvals.filter(e => e.project_id === pid).map(e => e.evaluator_id));
-          projStudents.forEach(s => { if (!peerSubmitters.has(s.student_id)) missing.push(`Peer eval not submitted by ${s.student_name}`); });
+          if (projStudents.length > 1) {
+            const peerSubmitters = new Set(peerEvals.filter(e => e.project_id === pid).map(e => e.evaluator_id));
+            projStudents.forEach(s => { if (!peerSubmitters.has(s.student_id)) missing.push(`Peer eval not submitted by ${s.student_name}`); });
+          }
 
           if (!twGrades.some(g => g.project_id === pid))
             missing.push('Teamwork grades not submitted by supervisor');
@@ -1305,7 +1308,8 @@ module.exports = async function handler(req, res) {
           const peerCount = peerCfg.length || 1;
           const peerPct   = pct(peer.reduce((s, e) => s + parseFloat(e.grade||0), 0), maxPeer * (peer.length / peerCount));
 
-          const twScore = (indPct * supW) + (peerPct * peerW);
+          const isSolo    = students.filter(s => s.project_id === student.project_id).length === 1;
+          const twScore   = isSolo ? indPct : (indPct * supW) + (peerPct * peerW);
 
           const projExCfg = exCfg.filter(c => !c.project_type || c.project_type === pt);
 

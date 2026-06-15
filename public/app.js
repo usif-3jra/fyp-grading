@@ -2101,7 +2101,7 @@ const Res = {
           startY: y, margin: { left: margin, right: margin }, theme: 'grid',
           headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
           bodyStyles: { fontSize: 7.5, cellPadding: 2 },
-          columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:cW*0.19}, 2:{cellWidth:cW*0.09,halign:'center'}, 3:{cellWidth:cW*0.21}, 4:{cellWidth:cW*0.075,halign:'center'}, 5:{cellWidth:cW*0.075,halign:'center'}, 6:{cellWidth:cW*0.075,halign:'center'}, 7:{cellWidth:cW*0.075,halign:'center'}, 8:{cellWidth:cW*0.10,halign:'center',fontStyle:'bold'}, 9:{cellWidth:cW*0.075,halign:'center',fontStyle:'bold'} },
+          columnStyles: { 0:{cellWidth:8,halign:'center'}, 1:{cellWidth:cW*0.19}, 2:{cellWidth:cW*0.10,halign:'center'}, 3:{cellWidth:cW*0.21}, 4:{cellWidth:cW*0.075,halign:'center'}, 5:{cellWidth:cW*0.075,halign:'center'}, 6:{cellWidth:cW*0.075,halign:'center'}, 7:{cellWidth:cW*0.075,halign:'center'}, 8:{cellWidth:cW*0.09,halign:'center',fontStyle:'bold'}, 9:{cellWidth:cW*0.075,halign:'center',fontStyle:'bold'} },
           head: [['#', 'Student Name', 'Student ID', 'Project Title', `TW (${meta.weights?.tw??35}%)`, `Report (${meta.weights?.report??35}%)`, `Pres (${meta.weights?.pres??30}%)`, 'Weight', 'Final Grade', 'Letter']],
           body: _sumRows,
         });
