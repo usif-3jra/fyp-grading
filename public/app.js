@@ -2106,99 +2106,7 @@ const Res = {
           body: _sumRows,
         });
 
-        for (const proj of typeProjects) {
-          // ── Project overview page ─────────────────────────────────────────
-          doc.addPage();
-          let y = drawHdr(doc, `${fypType} — Assessment Report`);
-
-          // Project banner (auto-expand for long titles)
-          const titleLines = doc.splitTextToSize(proj.title, cW - 6);
-          const titleTrunc  = titleLines.slice(0, 2);
-          const bannerH     = titleTrunc.length > 1 ? 24 : 18;
-          doc.setFillColor(235, 242, 255);
-          doc.roundedRect(margin, y, cW, bannerH, 2, 2, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(titleTrunc.length > 1 ? 9 : 11); doc.setTextColor(...navy);
-          doc.text(titleTrunc, margin + 3, y + 6);
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
-          doc.text(`Type: ${proj.type}   ·   Program: ${proj.program}   ·   Supervisor(s): ${proj.supervisors.join(', ')}   ·   Generated: ${genDate}`, margin + 3, y + bannerH - 4);
-          doc.setTextColor(0, 0, 0);
-          y += bannerH + 3;
-
-          // Student roster
-          y = sectionLabel(doc, y, 'Students Enrolled in this Project');
-          doc.autoTable({
-            startY: y, margin: { left: margin, right: margin }, theme: 'grid',
-            headStyles: { fillColor: navy, textColor: 255, fontSize: 8, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
-            bodyStyles: { fontSize: 8, cellPadding: 2 },
-            columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: cW * 0.6 }, 2: { cellWidth: cW - 10 - cW * 0.6, halign: 'center' } },
-            head: [['#', 'Student Name', 'Student ID']],
-            body: proj.students.map((s, i) => [i + 1, s.studentName, s.studentId]),
-          });
-
-          // ── Per-student pages ─────────────────────────────────────────────
-          for (const stu of proj.students) {
-            doc.addPage();
-            y = drawHdr(doc, `${fypType} — ${proj.title}`);
-
-            // Student header
-            doc.setFillColor(...blue);
-            doc.rect(margin, y, cW, 8, 'F');
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
-            doc.text(`${stu.studentName}   (${stu.studentId})`, margin + 3, y + 5.5);
-            doc.setTextColor(0, 0, 0);
-            y += 11;
-
-            // Teamwork individual criteria
-            y = sectionLabel(doc, y, 'Teamwork — Individual Assessment');
-            doc.autoTable({
-              startY: y, margin: { left: margin, right: margin }, theme: 'grid',
-              headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8, halign: 'center' },
-              bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
-              footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
-              columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: (cW - 7) * 0.62 }, 2: { cellWidth: (cW - 7) * 0.19, halign: 'center' }, 3: { cellWidth: (cW - 7) * 0.19, halign: 'center' } },
-              head: [['#', 'Criterion', 'Grade', 'Max']],
-              body: stu.twDetails.map(d => [d.num, d.criterion, d.grade, d.maxGrade]),
-              foot: [
-                [{ content: 'Peer Evaluation Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, colSpan: 2, styles: { halign: 'center' } }],
-                [{ content: 'Overall Teamwork Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.twScore}%`, colSpan: 2, styles: { halign: 'center' } }],
-              ],
-            });
-            y = doc.lastAutoTable.finalY + 3;
-
-            // Peer evaluation question breakdown
-            if (stu.peerDetails && stu.peerDetails.length) {
-              y = sectionLabel(doc, y, 'Peer Evaluation — Question Breakdown (Average of Peers)');
-              doc.autoTable({
-                startY: y, margin: { left: margin, right: margin }, theme: 'grid',
-                headStyles: { fillColor: [80, 130, 180], textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8, halign: 'center' },
-                bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
-                footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
-                columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: cW - 42 }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 15, halign: 'center' } },
-                head: [['#', 'Peer Evaluation Question', 'Avg Score', 'Max']],
-                body: stu.peerDetails.map(d => [d.num, d.question, d.avgScore, d.maxGrade]),
-                foot: [[{ content: 'Peer Evaluation Score', colSpan: 3, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, styles: { halign: 'center' } }]],
-              });
-              y = doc.lastAutoTable.finalY + 3;
-            }
-
-            // Examiner tables
-            y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report',       !isAdminUser);
-            y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation', !isAdminUser);
-
-            // Grade summary
-            y = sectionLabel(doc, y, 'Grade Summary');
-            doc.autoTable({
-              startY: y, margin: { left: margin, right: margin }, theme: 'grid',
-              headStyles: { fillColor: green, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
-              bodyStyles: { fontSize: 9, fontStyle: 'bold', cellPadding: 2.5, halign: 'center' },
-              columnStyles: { 0:{cellWidth:cW*0.18}, 1:{cellWidth:cW*0.18}, 2:{cellWidth:cW*0.18}, 3:{cellWidth:cW*0.15}, 4:{cellWidth:cW*0.15}, 5:{cellWidth:cW*0.16} },
-              head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Weighted %', 'Final Grade', 'Letter Grade']],
-              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, `${stu.summary.finalGrade + (stu.summary.boosted ? 1 : 0)}%${stu.summary.boosted ? ' ↑' : ''}`, stu.summary.letterGrade]],
-            });
-          }
-        }
-
-        // ── Summary page ──────────────────────────────────────────────────────
+        // ── Page 2: Grade Statistics, Distribution & ABET ────────────────────
         doc.addPage();
         let ys = drawHdr(doc, `${fypType} — Grade Statistics & ABET Outcomes`);
 
@@ -2287,6 +2195,98 @@ const Res = {
               columnStyles: { 0: { fontStyle: 'bold', cellWidth: cW * 0.18 }, 1: { halign: 'center', cellWidth: cW * 0.18 }, 2: { cellWidth: cW * 0.64 } },
               head: [['Outcome', 'Achievement %', 'Level of Achievement']],
               body: abetRows,
+            });
+          }
+        }
+
+        for (const proj of typeProjects) {
+          // ── Project overview page ─────────────────────────────────────────
+          doc.addPage();
+          let y = drawHdr(doc, `${fypType} — Assessment Report`);
+
+          // Project banner (auto-expand for long titles)
+          const titleLines = doc.splitTextToSize(proj.title, cW - 6);
+          const titleTrunc  = titleLines.slice(0, 2);
+          const bannerH     = titleTrunc.length > 1 ? 24 : 18;
+          doc.setFillColor(235, 242, 255);
+          doc.roundedRect(margin, y, cW, bannerH, 2, 2, 'F');
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(titleTrunc.length > 1 ? 9 : 11); doc.setTextColor(...navy);
+          doc.text(titleTrunc, margin + 3, y + 6);
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(60, 60, 60);
+          doc.text(`Type: ${proj.type}   ·   Program: ${proj.program}   ·   Supervisor(s): ${proj.supervisors.join(', ')}   ·   Generated: ${genDate}`, margin + 3, y + bannerH - 4);
+          doc.setTextColor(0, 0, 0);
+          y += bannerH + 3;
+
+          // Student roster
+          y = sectionLabel(doc, y, 'Students Enrolled in this Project');
+          doc.autoTable({
+            startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+            headStyles: { fillColor: navy, textColor: 255, fontSize: 8, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
+            bodyStyles: { fontSize: 8, cellPadding: 2 },
+            columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: cW * 0.6 }, 2: { cellWidth: cW - 10 - cW * 0.6, halign: 'center' } },
+            head: [['#', 'Student Name', 'Student ID']],
+            body: proj.students.map((s, i) => [i + 1, s.studentName, s.studentId]),
+          });
+
+          // ── Per-student pages ─────────────────────────────────────────────
+          for (const stu of proj.students) {
+            doc.addPage();
+            y = drawHdr(doc, `${fypType} — ${proj.title}`);
+
+            // Student header
+            doc.setFillColor(...blue);
+            doc.rect(margin, y, cW, 8, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+            doc.text(`${stu.studentName}   (${stu.studentId})`, margin + 3, y + 5.5);
+            doc.setTextColor(0, 0, 0);
+            y += 11;
+
+            // Teamwork individual criteria
+            y = sectionLabel(doc, y, 'Teamwork — Individual Assessment');
+            doc.autoTable({
+              startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+              headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8, halign: 'center' },
+              bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
+              footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+              columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: (cW - 7) * 0.62 }, 2: { cellWidth: (cW - 7) * 0.19, halign: 'center' }, 3: { cellWidth: (cW - 7) * 0.19, halign: 'center' } },
+              head: [['#', 'Criterion', 'Grade', 'Max']],
+              body: stu.twDetails.map(d => [d.num, d.criterion, d.grade, d.maxGrade]),
+              foot: [
+                [{ content: 'Peer Evaluation Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, colSpan: 2, styles: { halign: 'center' } }],
+                [{ content: 'Overall Teamwork Score', colSpan: 2, styles: { halign: 'right' } }, { content: `${stu.twScore}%`, colSpan: 2, styles: { halign: 'center' } }],
+              ],
+            });
+            y = doc.lastAutoTable.finalY + 3;
+
+            // Peer evaluation question breakdown
+            if (stu.peerDetails && stu.peerDetails.length) {
+              y = sectionLabel(doc, y, 'Peer Evaluation — Question Breakdown (Average of Peers)');
+              doc.autoTable({
+                startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+                headStyles: { fillColor: [80, 130, 180], textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8, halign: 'center' },
+                bodyStyles: { fontSize: 7.5, cellPadding: 1.8 },
+                footStyles: { fillColor: [230, 240, 255], textColor: [...navy], fontSize: 7.5, fontStyle: 'bold', cellPadding: 1.8 },
+                columnStyles: { 0: { cellWidth: 7, halign: 'center' }, 1: { cellWidth: cW - 42 }, 2: { cellWidth: 20, halign: 'center' }, 3: { cellWidth: 15, halign: 'center' } },
+                head: [['#', 'Peer Evaluation Question', 'Avg Score', 'Max']],
+                body: stu.peerDetails.map(d => [d.num, d.question, d.avgScore, d.maxGrade]),
+                foot: [[{ content: 'Peer Evaluation Score', colSpan: 3, styles: { halign: 'right' } }, { content: `${stu.peerPct}%`, styles: { halign: 'center' } }]],
+              });
+              y = doc.lastAutoTable.finalY + 3;
+            }
+
+            // Examiner tables
+            y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report',       !isAdminUser);
+            y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation', !isAdminUser);
+
+            // Grade summary
+            y = sectionLabel(doc, y, 'Grade Summary');
+            doc.autoTable({
+              startY: y, margin: { left: margin, right: margin }, theme: 'grid',
+              headStyles: { fillColor: green, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
+              bodyStyles: { fontSize: 9, fontStyle: 'bold', cellPadding: 2.5, halign: 'center' },
+              columnStyles: { 0:{cellWidth:cW*0.18}, 1:{cellWidth:cW*0.18}, 2:{cellWidth:cW*0.18}, 3:{cellWidth:cW*0.15}, 4:{cellWidth:cW*0.15}, 5:{cellWidth:cW*0.16} },
+              head: [[`Teamwork (${meta.weights?.tw ?? 35}%)`, `Report (${meta.weights?.report ?? 35}%)`, `Presentation (${meta.weights?.pres ?? 30}%)`, 'Weighted %', 'Final Grade', 'Letter Grade']],
+              body: [[`${stu.summary.teamworkPct}%`, `${stu.summary.reportPct}%`, `${stu.summary.presPct}%`, `${stu.summary.finalGrade}%`, `${stu.summary.finalGrade + (stu.summary.boosted ? 1 : 0)}%${stu.summary.boosted ? ' ↑' : ''}`, stu.summary.letterGrade]],
             });
           }
         }
