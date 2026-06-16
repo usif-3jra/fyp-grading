@@ -222,6 +222,8 @@ const App = {
     if (inboxBtn)    inboxBtn.classList.toggle('d-none', !isAdmin);
     const progSel    = document.getElementById('res-filter-program');
     if (progSel)     progSel.classList.toggle('d-none', !isAdmin);
+    const distBtn    = document.getElementById('btn-export-distribution');
+    if (distBtn)     distBtn.classList.toggle('d-none', !isAdmin);
 
 
     if (!isAdmin) {
@@ -2300,6 +2302,164 @@ const Res = {
         Toast.show(`${fypType} PDF downloaded.`);
       }
     } catch (e) { Toast.show('PDF error: ' + (e.message || e), 'error'); console.error(e); }
+    finally { Spinner.hide(); }
+  },
+
+  // ── Admin-only: Criteria Grade Distribution statistical report ────────
+  async exportDistributionReport() {
+    Spinner.show();
+    try {
+      const res = await gsrAuth('getCriteriaDistribution');
+      if (!res.success) { Toast.show(res.message || 'Failed to load distribution data.', 'error'); return; }
+
+      const logoUrl = 'https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png';
+      const loadImg = async url => {
+        try {
+          return await new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => { const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; c.getContext('2d').drawImage(img, 0, 0); resolve({ dataUrl: c.toDataURL('image/png'), w: img.width, h: img.height }); };
+            img.onerror = () => resolve(null);
+            img.src = url;
+          });
+        } catch { return null; }
+      };
+      const logoData = await loadImg(logoUrl);
+
+      const { jsPDF } = window.jspdf;
+      const W = 210, margin = 14, cW = W - 2 * margin, PAGE_H = 297, BOTTOM_MARGIN = 15;
+      const navy = [30, 58, 95];
+      const meta = res.meta || {};
+      const reportTitle = 'Grade Distribution — Criteria Statistics Report';
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const drawHdr = (subtitle) => {
+        doc.setFillColor(...navy);
+        doc.rect(0, 0, W, 27, 'F');
+        let textX = W / 2, textMaxW = cW - 36;
+        if (logoData) {
+          const lw = 32, lh = lw * (logoData.h / logoData.w);
+          doc.addImage(logoData.dataUrl, 'PNG', margin, (27 - lh) / 2, lw, lh);
+          const logoRight = margin + lw + 4;
+          textX = (logoRight + (W - margin)) / 2;
+          textMaxW = (W - margin) - logoRight;
+        }
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12.5);
+        doc.text(subtitle, textX, 10, { align: 'center', maxWidth: textMaxW });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+        doc.text(`Beirut Arab University  ·  Faculty of Engineering  ·  ${meta.department || 'ECE'} Department`, W / 2, 17, { align: 'center' });
+        doc.text(`Academic Year ${meta.year || ''}${meta.semester ? '  ·  Semester: ' + meta.semester : ''}`, W / 2, 22.5, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        return 30;
+      };
+
+      const sectionLabel = (y, text) => {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(50, 50, 50);
+        doc.text(text, margin, y + 3.5);
+        doc.setTextColor(0, 0, 0);
+        return y + 5;
+      };
+
+      const groupHeader = (y, text) => {
+        doc.setFillColor(...navy);
+        doc.rect(margin, y, cW, 6.5, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+        doc.text(text, margin + 3, y + 4.5);
+        doc.setTextColor(0, 0, 0);
+        return y + 10;
+      };
+
+      const ensureSpace = (y, neededH) => {
+        if (y + neededH > PAGE_H - BOTTOM_MARGIN) { doc.addPage(); return drawHdr(reportTitle); }
+        return y;
+      };
+
+      const drawHistogram = (y, title, labels, values, total) => {
+        y = sectionLabel(y, `${title}  (n = ${total} graded ${total === 1 ? 'criterion' : 'criteria'})`);
+        const chartH = 52, axisPadL = 12, plotX = margin + axisPadL, plotW = cW - axisPadL, plotY = y + 2, plotH = chartH;
+
+        doc.setLineWidth(0.1); doc.setDrawColor(225, 225, 225);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(130, 130, 130);
+        [0, 25, 50, 75, 100].forEach(mark => {
+          const gy = plotY + plotH - (mark / 100) * plotH;
+          doc.line(plotX, gy, plotX + plotW, gy);
+          doc.text(`${mark}%`, plotX - 2, gy + 1.2, { align: 'right' });
+        });
+
+        const n = labels.length, slot = plotW / n, barW = slot * 0.62;
+        labels.forEach((lab, i) => {
+          const val = values[i] || 0;
+          const barH = (val / 100) * plotH;
+          const bx = plotX + i * slot + (slot - barW) / 2;
+          const by = plotY + plotH - barH;
+          doc.setFillColor(...navy);
+          if (barH > 0.3) doc.rect(bx, by, barW, barH, 'F');
+          if (val > 0) {
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(60, 60, 60);
+            doc.text(`${val}%`, bx + barW / 2, by - 1.2, { align: 'center' });
+          }
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6.3); doc.setTextColor(70, 70, 70);
+          doc.text(lab, bx + barW / 2, plotY + plotH + 5, { align: 'center' });
+        });
+
+        doc.setDrawColor(150, 150, 150);
+        doc.line(plotX, plotY + plotH, plotX + plotW, plotY + plotH);
+        doc.setTextColor(0, 0, 0); doc.setDrawColor(0, 0, 0);
+        return plotY + plotH + 13;
+      };
+
+      let y = drawHdr(reportTitle);
+      const buckets = res.buckets;
+
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
+      doc.text('Each bar shows the percentage of all graded criteria (Teamwork, Peer Evaluation, Report, Presentation) whose score fell within that 5-point range. Criteria scoring below 45% are excluded from the chart but still counted in the total (n).', margin, y, { maxWidth: cW });
+      doc.setTextColor(0, 0, 0);
+      y += 9;
+
+      // Overall
+      y = ensureSpace(y, 70);
+      y = groupHeader(y, 'Overall — All Programs & All FYP Types Combined');
+      y = drawHistogram(y, 'Overall Distribution', buckets, res.overall.pct, res.overall.total);
+
+      // By FYP Type
+      if (res.byType && Object.keys(res.byType).length) {
+        y = ensureSpace(y, 16);
+        y = groupHeader(y, 'Distribution by FYP Type');
+        for (const t of ['FYP1', 'FYP2']) {
+          if (!res.byType[t]) continue;
+          y = ensureSpace(y, 70);
+          y = drawHistogram(y, t, buckets, res.byType[t].pct, res.byType[t].total);
+        }
+      }
+
+      // By Category
+      if (res.byCategory && Object.keys(res.byCategory).length) {
+        y = ensureSpace(y, 16);
+        y = groupHeader(y, 'Distribution by Grading Category');
+        const catLabels = { TW: 'Teamwork — Supervisor Grading', Peer: 'Peer Evaluation', Report: 'Examiner — Report Grading', Presentation: 'Examiner — Presentation Grading' };
+        for (const cat of ['TW', 'Peer', 'Report', 'Presentation']) {
+          if (!res.byCategory[cat]) continue;
+          y = ensureSpace(y, 70);
+          y = drawHistogram(y, catLabels[cat] || cat, buckets, res.byCategory[cat].pct, res.byCategory[cat].total);
+        }
+      }
+
+      // By Program
+      const programs = Object.keys(res.byProgram || {});
+      if (programs.length) {
+        y = ensureSpace(y, 16);
+        y = groupHeader(y, 'Distribution by Program');
+        for (const p of programs) {
+          y = ensureSpace(y, 70);
+          y = drawHistogram(y, p, buckets, res.byProgram[p].pct, res.byProgram[p].total);
+        }
+      }
+
+      doc.save(`FYP_Grade_Distribution_${(meta.year || '').replace('–', '-')}.pdf`);
+      Toast.show('Grade Distribution Report downloaded.');
+    } catch (e) { Toast.show('Report error: ' + (e.message || e), 'error'); console.error(e); }
     finally { Spinner.hide(); }
   },
 };

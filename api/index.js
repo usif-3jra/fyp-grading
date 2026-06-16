@@ -1183,6 +1183,87 @@ module.exports = async function handler(req, res) {
             weights: { tw: Math.round(twW*100), report: Math.round(repW*100), pres: Math.round(presW*100) } } });
       }
 
+      // ─── Criteria Grade Distribution (Admin statistical report) ──────
+      case 'getCriteriaDistribution': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session) return ok({ success: false, message: 'Session expired.' });
+        if (!session.is_admin) return ok({ success: false, message: 'Only the admin can view this report.' });
+
+        const [allProjects, twGrades, peerEvals, exGrades, exCfg, peerCfg] = await Promise.all([
+          sql`SELECT * FROM projects`,
+          sql`SELECT * FROM tw_grades WHERE grade_type = 'Individual'`,
+          sql`SELECT * FROM peer_evaluations`,
+          sql`SELECT * FROM examiner_grades`,
+          sql`SELECT * FROM examiner_config ORDER BY id`,
+          sql`SELECT * FROM peer_config ORDER BY question_no`,
+        ]);
+        const indRubric = await getIndividualRubric();
+        const cfg = await getTWConfig();
+
+        const projById = {};
+        allProjects.forEach(p => { projById[p.project_id] = p; });
+
+        // Each entry = one graded criterion instance, normalized to a percentage
+        const entries = [];
+
+        // TW — Supervisor (Individual rubric)
+        twGrades.forEach(g => {
+          const proj = projById[g.project_id];
+          if (!proj) return;
+          const rub = indRubric.find(r => r.criterion === g.criterion);
+          const max = rub ? Number(rub.maxGrade || 25) : 25;
+          if (max <= 0) return;
+          entries.push({ pct: (parseFloat(g.grade || 0) / max) * 100, program: proj.program_type || 'Unspecified', type: String(proj.type || 'FYP1'), category: 'TW' });
+        });
+
+        // Peer Evaluation
+        const peerMaxByQ = {};
+        peerCfg.forEach(q => { peerMaxByQ[String(q.question_no)] = parseFloat(q.max_grade || 10); });
+        peerEvals.forEach(e => {
+          const proj = projById[e.project_id];
+          if (!proj) return;
+          const max = peerMaxByQ[String(e.question_no)] || 10;
+          if (max <= 0) return;
+          entries.push({ pct: (parseFloat(e.grade || 0) / max) * 100, program: proj.program_type || 'Unspecified', type: String(proj.type || 'FYP1'), category: 'Peer' });
+        });
+
+        // Examiner — Report & Presentation
+        exGrades.forEach(g => {
+          const proj = projById[g.project_id];
+          if (!proj) return;
+          const projType = String(proj.type || 'FYP1');
+          const cfgMatch = exCfg.find(c => c.criterion_name === g.criterion && c.category === g.category && (!c.project_type || c.project_type === projType));
+          const max = cfgMatch ? parseFloat(cfgMatch.max_grade || 0) : 0;
+          if (!max || max <= 0) return;
+          const category = g.category === 'Presentation' ? 'Presentation' : 'Report';
+          entries.push({ pct: (parseFloat(g.score || 0) / max) * 100, program: proj.program_type || 'Unspecified', type: projType, category });
+        });
+
+        // ── Bucketing: 45-49, 50-54, ..., 95-100 (11 buckets) ──────────────
+        const bucketLabels = ['45-49','50-54','55-59','60-64','65-69','70-74','75-79','80-84','85-89','90-94','95-100'];
+        const bucketIndex = p => p < 45 ? -1 : Math.min(10, Math.floor((p - 45) / 5));
+        const makeDist = list => {
+          const total = list.length;
+          const counts = new Array(11).fill(0);
+          list.forEach(e => { const idx = bucketIndex(e.pct); if (idx >= 0) counts[idx]++; });
+          return { total, pct: counts.map(c => total > 0 ? rnd((c / total) * 100) : 0) };
+        };
+
+        const overall = makeDist(entries);
+        const byType = {};
+        ['FYP1', 'FYP2'].forEach(t => { const list = entries.filter(e => e.type === t); if (list.length) byType[t] = makeDist(list); });
+        const byCategory = {};
+        ['TW', 'Peer', 'Report', 'Presentation'].forEach(cat => { const list = entries.filter(e => e.category === cat); if (list.length) byCategory[cat] = makeDist(list); });
+        const programs = [...new Set(entries.map(e => e.program))].sort();
+        const byProgram = {};
+        programs.forEach(p => { const list = entries.filter(e => e.program === p); if (list.length) byProgram[p] = makeDist(list); });
+
+        const now2 = new Date();
+        return ok({ success: true, buckets: bucketLabels, overall, byType, byCategory, byProgram,
+          meta: { year: `${now2.getFullYear()}–${now2.getFullYear()+1}`, semester: cfg.semester || '', department: 'ECE' } });
+      }
+
       case 'getFinalResults': {
         const [sessionToken] = args;
         const session = await verifySession(sessionToken);
