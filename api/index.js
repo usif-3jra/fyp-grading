@@ -610,6 +610,90 @@ module.exports = async function handler(req, res) {
         return ok({ success: true });
       }
 
+      case 'getMyPendingTasks': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session) return ok({ success: false, twTasks: [], examTasks: [] });
+        if (session.is_admin) return ok({ success: true, twTasks: [], examTasks: [] });
+
+        const supId = session.supervisor_id;
+
+        // TW lock state — skip TW tasks when grading is not actionable
+        const twCfg          = await getTWConfig();
+        const twManualLocked = twCfg.tw_locked === 'true';
+        const twDateLocked   = twCfg.week14_date
+          ? (() => { try { const w = new Date(twCfg.week14_date); w.setHours(23,59,59,999); return new Date() > w; } catch { return false; } })()
+          : false;
+        const twIsLocked = twManualLocked || twDateLocked;
+        const week14Label = twCfg.week14_date || '';
+        const semEndLabel = twCfg.semester_end_date || '';
+
+        // ── TW tasks: projects this supervisor owns that are not fully graded ──
+        const twTasks = [];
+        if (!twIsLocked) {
+          const allProjects = await sql`SELECT project_id, title, type, supervisors FROM projects`;
+          const myProjects  = allProjects.filter(p =>
+            (p.supervisors || '').split(',').map(s => s.trim()).includes(supId)
+          );
+          if (myProjects.length) {
+            const myProjIds = myProjects.map(p => p.project_id);
+            const [allStudents, allGrades, indRubric] = await Promise.all([
+              sql`SELECT student_id, project_id FROM students WHERE project_id = ANY(${myProjIds})`,
+              sql`SELECT project_id, student_id, criterion, graded_by FROM tw_grades WHERE project_id = ANY(${myProjIds}) AND grade_type = 'Individual'`,
+              getIndividualRubric(),
+            ]);
+            for (const proj of myProjects) {
+              const pid          = proj.project_id;
+              const projStudents = allStudents.filter(s => s.project_id === pid);
+              if (!projStudents.length || !indRubric.length) continue;
+              const expected    = projStudents.length * indRubric.length;
+              const humanGrades = allGrades.filter(g => g.project_id === pid && g.graded_by !== 'system').length;
+              if (humanGrades < expected) {
+                twTasks.push({ projectId: pid, title: proj.title, type: String(proj.type || 'FYP1'),
+                  status: humanGrades === 0 ? 'not_started' : 'in_progress', graded: humanGrades, total: expected });
+              }
+            }
+          }
+        }
+
+        // ── Examiner tasks: assignments where this supervisor is the examiner ──
+        const examTasks = [];
+        const supEmailRows = await sql`SELECT email FROM supervisors WHERE supervisor_id = ${supId}`;
+        const supEmail = supEmailRows[0] ? String(supEmailRows[0].email || '').trim().toLowerCase() : '';
+        if (supEmail) {
+          const assignments = await sql`
+            SELECT e.project_id, e.examiner_type, e.status, e.token, e.report_link,
+                   p.title AS project_title, p.supervisors AS proj_sups
+            FROM examiners e
+            LEFT JOIN projects p ON p.project_id = e.project_id
+            WHERE LOWER(e.examiner_email) = ${supEmail} AND e.status != 'Submitted'
+          `;
+          if (assignments.length) {
+            const allSupIds = [...new Set(
+              assignments.flatMap(a => (a.proj_sups || '').split(',').map(s => s.trim()).filter(Boolean))
+            )];
+            const supNameRows = allSupIds.length
+              ? await sql`SELECT supervisor_id, name FROM supervisors WHERE supervisor_id = ANY(${allSupIds})`
+              : [];
+            const supNameMap = {};
+            supNameRows.forEach(r => { supNameMap[r.supervisor_id] = r.name; });
+            for (const a of assignments) {
+              const supIds = (a.proj_sups || '').split(',').map(s => s.trim()).filter(Boolean);
+              const supervisorNames = supIds.map(id => supNameMap[id] || id).join(', ') || '—';
+              const isIndustry = a.examiner_type === 'Industry';
+              const missing    = isIndustry             ? ['Presentation']
+                               : a.status === 'Pending' ? ['Report', 'Presentation']
+                               :                          ['Presentation'];
+              examTasks.push({ projectId: a.project_id, projectTitle: a.project_title || '—',
+                supervisorNames, examinerType: a.examiner_type, status: a.status,
+                token: a.token, missing, reportLink: a.report_link || '' });
+            }
+          }
+        }
+
+        return ok({ success: true, twTasks, examTasks, week14Label, semEndLabel });
+      }
+
       // ─── Feedback ────────────────────────────────────────────────────
 
       case 'submitFeedback': {

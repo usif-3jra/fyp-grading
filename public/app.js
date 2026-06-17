@@ -267,7 +267,9 @@ const App = {
     document.querySelector('[data-bs-target="#tab-ex"]').addEventListener('shown.bs.tab', () => Ex.loadProjects());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('shown.bs.tab', () => TW.refreshProjectList());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('hide.bs.tab', () => TW.stopPolling());
+    document.querySelector('[data-bs-target="#tab-reg"]').addEventListener('shown.bs.tab', () => Tasks.load());
     InactivityTimer.start();
+    Tasks.load();
   },
 
   async loadKPIs() {
@@ -736,6 +738,149 @@ const Reg = {
       bootstrap.Modal.getInstance(document.getElementById('modalAddSupervisor')).hide();
     } catch (e) { Toast.show(e.message, 'error'); }
     finally { Spinner.hide(); }
+  },
+};
+
+// ── Pending Actions Panel ──────────────────────────────────────────────
+
+const Tasks = {
+  _data: null,
+
+  async load() {
+    if (!Auth.supervisor || Auth.supervisor.isAdmin) return;
+    try {
+      const res = await gsrAuth('getMyPendingTasks');
+      if (!res || !res.success) return;
+      this._data = res;
+      this._render();
+    } catch (e) { /* non-critical */ }
+  },
+
+  _render() {
+    const panel = document.getElementById('tasks-panel');
+    if (!panel) return;
+    const { twTasks = [], examTasks = [], week14Label = '', semEndLabel = '' } = this._data || {};
+    const total = twTasks.length + examTasks.length;
+
+    const twBadge = document.getElementById('badge-tw-tab');
+    const exBadge = document.getElementById('badge-ex-tab');
+    if (twBadge) { twBadge.textContent = twTasks.length;   twBadge.classList.toggle('d-none', twTasks.length   === 0); }
+    if (exBadge) { exBadge.textContent = examTasks.length; exBadge.classList.toggle('d-none', examTasks.length === 0); }
+
+    if (total === 0) { panel.classList.add('d-none'); return; }
+    panel.classList.remove('d-none');
+    document.getElementById('tasks-total-badge').textContent = total;
+
+    const fmtDate = iso => {
+      if (!iso) return '';
+      try { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return iso; }
+    };
+    const daysLeft = iso => {
+      if (!iso) return null;
+      try { return Math.ceil((new Date(iso) - Date.now()) / 86400000); } catch { return null; }
+    };
+
+    let html = '';
+
+    if (twTasks.length) {
+      const dl      = daysLeft(week14Label);
+      const dlHtml  = dl !== null
+        ? dl <= 0
+          ? `<span class="badge bg-danger ms-2" style="font-size:10px;">Deadline passed</span>`
+          : `<span class="badge bg-secondary ms-2" style="font-size:10px;">Week 14: ${fmtDate(week14Label)} (${dl}d left)</span>`
+        : '';
+      html += `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;padding:8px 20px 6px;background:#f9fafb;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-users-cog text-warning"></i>Teamwork Grading${dlHtml}</div>`;
+      twTasks.forEach(t => {
+        const isProg = t.status === 'in_progress';
+        const pct    = t.total > 0 ? Math.round((t.graded / t.total) * 100) : 0;
+        const statusBadge = isProg
+          ? `<span class="badge ms-2" style="background:#fef3c7;color:#92400e;font-size:11px;">In Progress</span>`
+          : `<span class="badge bg-danger ms-2" style="font-size:11px;">Not Started</span>`;
+        const detail = isProg
+          ? `<span class="text-muted" style="font-size:12px;">${t.graded} of ${t.total} grade entries filled</span>
+             <div class="progress mt-1" style="height:4px;max-width:220px;border-radius:4px;background:#e5e7eb;">
+               <div class="progress-bar" style="width:${pct}%;background:#f59e0b;"></div></div>`
+          : `<span class="text-muted" style="font-size:12px;">No grades entered yet</span>`;
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #f3f4f6;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+              <span class="badge ${t.type === 'FYP2' ? 'bg-info' : 'bg-primary'}" style="font-size:10px;">${escHtml(t.type)}</span>
+              <strong style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;display:inline-block;" title="${escHtml(t.title)}">${escHtml(t.title)}</strong>
+              ${statusBadge}
+            </div>
+            ${detail}
+          </div>
+          <button class="btn btn-sm btn-outline-primary flex-shrink-0" style="white-space:nowrap;" onclick="Tasks._goToTW('${escHtml(t.projectId)}')">
+            <i class="fas fa-edit me-1"></i>Grade Now
+          </button>
+        </div>`;
+      });
+    }
+
+    if (examTasks.length) {
+      const dl      = daysLeft(semEndLabel);
+      const dlHtml  = dl !== null
+        ? dl <= 0
+          ? `<span class="badge bg-danger ms-2" style="font-size:10px;">Deadline passed</span>`
+          : `<span class="badge bg-secondary ms-2" style="font-size:10px;">Pres. deadline: ${fmtDate(semEndLabel)} (${dl}d left)</span>`
+        : '';
+      html += `<div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;padding:8px 20px 6px;background:#f9fafb;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-user-tie text-warning"></i>Examiner Grading${dlHtml}</div>`;
+      examTasks.forEach(t => {
+        const missingStr  = t.missing.join(' &amp; ');
+        const statusBadge = t.status === 'ReportSubmitted'
+          ? `<span class="badge ms-2" style="background:#fef3c7;color:#92400e;font-size:11px;">Report Done — Pres. Pending</span>`
+          : `<span class="badge bg-danger ms-2" style="font-size:11px;">Not Started</span>`;
+        const reportBtn   = t.reportLink
+          ? `<a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="${escHtml(t.reportLink)}" target="_blank" rel="noopener" title="Open project report"><i class="fas fa-file-pdf me-1"></i>Report</a>`
+          : '';
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #f3f4f6;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:4px;">
+              <span class="badge bg-secondary" style="font-size:10px;">${escHtml(t.examinerType)}</span>
+              <strong style="font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;display:inline-block;" title="${escHtml(t.projectTitle)}">${escHtml(t.projectTitle)}</strong>
+              ${statusBadge}
+            </div>
+            <span class="text-muted" style="font-size:12px;">Supervisor(s): ${escHtml(t.supervisorNames)} &nbsp;&bull;&nbsp; Missing: <em>${missingStr}</em></span>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+            ${reportBtn}
+            <a class="btn btn-sm btn-warning flex-shrink-0" href="examiner.html?token=${encodeURIComponent(t.token)}" target="_blank" rel="noopener" style="white-space:nowrap;">
+              <i class="fas fa-external-link-alt me-1"></i>Open Grading Portal
+            </a>
+          </div>
+        </div>`;
+      });
+    }
+
+    document.getElementById('tasks-list').innerHTML = html;
+  },
+
+  _goToTW(projectId) {
+    const twTabBtn = document.querySelector('[data-bs-target="#tab-tw"]');
+    if (twTabBtn) bootstrap.Tab.getOrCreateInstance(twTabBtn).show();
+    setTimeout(() => {
+      const gradeBtn = document.getElementById('tw-grade-tab-btn');
+      if (gradeBtn) bootstrap.Tab.getOrCreateInstance(gradeBtn).show();
+    }, 50);
+    let attempts = 0;
+    const trySelect = () => {
+      const sel = document.getElementById('tw-project-sel');
+      if (!sel) return;
+      const opt = [...sel.options].find(o => o.value === projectId);
+      if (opt) { sel.value = projectId; TW.loadGradingUI(); return; }
+      if (++attempts < 20) setTimeout(trySelect, 150);
+    };
+    setTimeout(trySelect, 200);
+  },
+
+  toggle() {
+    const body = document.getElementById('tasks-body');
+    const icon = document.getElementById('tasks-toggle-icon');
+    if (!body) return;
+    const collapsed = body.classList.toggle('d-none');
+    if (icon) icon.className = collapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
   },
 };
 
