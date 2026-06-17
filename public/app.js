@@ -1989,7 +1989,7 @@ const Res = {
 
       // Apply type filter from UI (respects dropdown selection)
       const typeFilter = document.getElementById('res-filter-type')?.value || '';
-      const fypTypesToExport = typeFilter ? [typeFilter] : ['FYP1', 'FYP2'].filter(pt => exportProjects.some(p => p.type === pt));
+      const fypTypesToExport = typeFilter ? [typeFilter] : ['FYP1', 'FYP2'].filter(pt => this.allResults.some(r => r.projectType === pt));
 
       // Load university logo (preserve aspect ratio)
       const logoUrl = 'https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png';

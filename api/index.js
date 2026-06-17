@@ -1024,6 +1024,81 @@ module.exports = async function handler(req, res) {
 
         // Complete submission
         await sql`UPDATE examiners SET status = 'Submitted' WHERE assignment_id = ${assignment.assignment_id}`;
+
+        // Confirmation email — fire-and-forget, never blocks response
+        try {
+          const projRows      = await sql`SELECT title, supervisors, type FROM projects WHERE project_id = ${assignment.project_id}`;
+          const proj          = projRows[0] || null;
+          const projectTitle  = proj ? proj.title : '—';
+          const projectType   = proj ? String(proj.type || 'FYP1') : 'FYP1';
+          const supIds        = proj ? (proj.supervisors || '').split(',').map(s => s.trim()).filter(Boolean) : [];
+          const supRows       = supIds.length ? await sql`SELECT name FROM supervisors WHERE supervisor_id = ANY(${supIds})` : [];
+          const supervisorName = supRows.map(r => r.name).join(', ') || '—';
+          const rawCfg        = await sql`SELECT * FROM examiner_config WHERE project_type = ${projectType} ORDER BY id`;
+          const cfgMap        = {};
+          for (const c of rawCfg) cfgMap[`${c.category}::${c.criterion_name}`] = { weight: c.weight, maxGrade: c.max_grade };
+
+          const examinerName   = assignment.examiner_name || 'Examiner';
+          const examinerType   = assignment.examiner_type;
+          const isIndustryExam = examinerType === 'Industry';
+
+          const buildGradeTable = (cat) => {
+            const catGrades = grades.filter(g => g.category === cat);
+            if (!catGrades.length) return '';
+            const hasStudentCol = catGrades.some(g => g.studentId);
+            const thSt = 'padding:8px 12px;border:1px solid #e5e7eb;font-size:12px;color:#374151;font-weight:600;';
+            const tdSt = 'padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;';
+            const thead = `<tr style="background:#f0f4ff;"><th style="${thSt}text-align:left;">Criterion</th>${hasStudentCol ? `<th style="${thSt}text-align:center;">Student</th>` : ''}<th style="${thSt}text-align:center;">Score</th><th style="${thSt}text-align:center;">Weight</th><th style="${thSt}text-align:center;">Max</th></tr>`;
+            const tbody = catGrades.map(g => {
+              const c = cfgMap[`${cat}::${g.criterion}`] || {};
+              return `<tr><td style="${tdSt}color:#374151;">${g.criterion}</td>${hasStudentCol ? `<td style="${tdSt}text-align:center;color:#6b7280;">${g.studentId || '—'}</td>` : ''}<td style="${tdSt}text-align:center;font-weight:700;color:#0a1f44;">${g.score}</td><td style="${tdSt}text-align:center;color:#6b7280;">${c.weight != null ? c.weight + '%' : '—'}</td><td style="${tdSt}text-align:center;color:#6b7280;">${c.maxGrade != null ? c.maxGrade : '—'}</td></tr>`;
+            }).join('');
+            return `<p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#0a1f44;">${cat} Grades</p><table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 24px;">${thead}${tbody}</table>`;
+          };
+
+          const categories     = isIndustryExam ? ['Presentation'] : ['Report', 'Presentation'];
+          const tablesHtml     = categories.map(buildGradeTable).join('');
+          const completionNote = isIndustryExam
+            ? 'the <strong>Presentation</strong> grading'
+            : 'grading of both the <strong>Report</strong> and <strong>Presentation</strong>';
+
+          await sendEmail(
+            assignment.examiner_email,
+            `Grade Submission Confirmed — ${projectTitle}`,
+            `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;"><tr><td align="center" style="padding:32px 16px;">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+  <tr><td align="center" style="background:#ffffff;padding:28px 40px 16px;"><img src="https://usif-3jra.github.io/epme-study-plan/assets/logo_ECE.png" alt="BAU ECE" width="130" style="display:block;max-width:130px;height:auto;"/></td></tr>
+  <tr><td style="background:#0a1f44;padding:24px 40px;text-align:center;"><div style="color:#fff;font-size:20px;font-weight:700;letter-spacing:.02em;margin-bottom:6px;">FYP Management &amp; Grading System</div><div style="color:#94a3b8;font-size:13px;">Beirut Arab University — Faculty of Engineering — ECE Department</div></td></tr>
+  <tr><td style="padding:32px 40px;color:#2d2d2d;font-size:15px;line-height:1.7;">
+    <p style="margin:0 0 16px;">Dear ${examinerName},</p>
+    <div style="background:#e8f5e9;border-left:4px solid #22c55e;border-radius:6px;padding:14px 18px;margin:0 0 20px;font-size:14px;color:#166534;"><strong>&#10003; Submission Confirmed</strong> &mdash; Your grades have been successfully recorded.</div>
+    <p style="margin:0 0 16px;">Thank you for completing ${completionNote} for the following project:</p>
+    <div style="background:#f0f4ff;border-left:4px solid #0a1f44;border-radius:6px;padding:18px 24px;margin:0 0 24px;">
+      <table cellpadding="0" cellspacing="0" style="width:100%;">
+        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;width:140px;">Project Title</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;">${projectTitle}</td></tr>
+        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Supervisor(s)</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${supervisorName}</td></tr>
+        <tr><td style="font-size:13px;color:#6b7280;font-weight:600;padding:5px 0;border-top:1px solid #dde3f3;">Examiner Role</td><td style="font-size:14px;font-weight:700;color:#0a1f44;padding:5px 0;border-top:1px solid #dde3f3;">${examinerType} Examiner</td></tr>
+      </table>
+    </div>
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;">A summary of the grades you submitted is provided below:</p>
+    ${tablesHtml}
+    <p style="margin:0 0 8px;font-size:14px;color:#374151;">No further action is required. Should you have any questions, please contact the ECE Department.</p>
+    <p style="margin:0 0 4px;">Best regards,</p>
+    <p style="margin:0 0 2px;font-weight:600;">ECE Department Administration</p>
+    <p style="margin:0;color:#6b7280;font-size:13px;">Faculty of Engineering &mdash; Beirut Arab University</p>
+  </td></tr>
+  <tr><td style="border-top:1px solid #e5e7eb;padding:16px 40px;text-align:center;color:#9ca3af;font-size:11px;background:#f9fafb;">
+    &copy; 2026 Beirut Arab University &mdash; Faculty of Engineering &mdash; ECE Department<br/>
+    This is an automated message. Please do not reply directly to this email.
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`
+          );
+        } catch {}
+
         return ok({ success: true });
       }
 
