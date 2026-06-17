@@ -925,7 +925,7 @@ module.exports = async function handler(req, res) {
         const v2SupIds = (project?.supervisors || '').split(',').map(x => x.trim()).filter(Boolean);
         const v2SupRows = v2SupIds.length ? await sql`SELECT name FROM supervisors WHERE supervisor_id = ANY(${v2SupIds})` : [];
         const v2SupervisorName = v2SupRows.map(r => r.name).join(', ') || '—';
-        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
+        const RUBRIC_PDF = 'https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf';
         await Promise.all((assignments || []).map(async a => {
           const link = `${APP_URL}/examiner.html?token=${a.token}`;
           const reportBlock = a.reportLink ? `<p><strong>Project Report:</strong><br/><a href="${a.reportLink}">${a.reportLink}</a></p>` : '';
@@ -983,7 +983,7 @@ module.exports = async function handler(req, res) {
         const v2rSupIds = (e.supervisors || '').split(',').map(x => x.trim()).filter(Boolean);
         const v2rSupRows = v2rSupIds.length ? await sql`SELECT name FROM supervisors WHERE supervisor_id = ANY(${v2rSupIds})` : [];
         const v2rSupervisorName = v2rSupRows.map(r => r.name).join(', ') || '—';
-        const RUBRIC_PDF = 'https://baudom-my.sharepoint.com/:b:/g/personal/yousef_ajrah_bau_edu_lb/IQA0FxBsdn1JTbKFp9Hb_RRMAWMl0mIXrt1QthUyyWTCIeQ?e=MTiil6';
+        const RUBRIC_PDF = 'https://mirror-logic.github.io/fyp-grading/FYP%20Grading%20and%20Rubrics.pdf';
         const link = `${APP_URL}/examiner.html?token=${e.token}`;
         const reportBlock = e.report_link ? `<p><strong>Project Report:</strong><br/><a href="${e.report_link}">${e.report_link}</a></p>` : '';
         await sendEmail(
