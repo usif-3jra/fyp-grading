@@ -103,7 +103,7 @@
             <i class="fas fa-key me-2 text-primary"></i>Change Password
           </a></li>
           <li><hr class="dropdown-divider"/></li>
-          <li><span class="dropdown-item-text" style="font-family:monospace;font-size:10px;color:#94a3b8;">v02.17-06-26 R01</span></li>
+          <li><span class="dropdown-item-text" style="font-family:monospace;font-size:10px;color:#94a3b8;">v02.17-06-26 R02</span></li>
         </ul>
       </div>
       <button class="btn btn-sm btn-danger" onclick="Auth.logout()" title="Logout">
@@ -151,34 +151,16 @@
   <!-- Tab Nav -->
   <ul class="nav app-tabs mb-0" id="mainTabs" role="tablist">
     <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-reg"  type="button"><i class="fas fa-plus-circle me-2"></i>Registration</button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-tw"   type="button"><i class="fas fa-users-cog me-2"></i>Teamwork &amp; Peer Eval<span class="badge rounded-pill bg-danger ms-1 d-none" id="badge-tw-tab" style="font-size:10px;vertical-align:middle;"></span></button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-ex"   type="button"><i class="fas fa-user-tie me-2"></i>Examiner Assignment<span class="badge rounded-pill bg-danger ms-1 d-none" id="badge-ex-tab" style="font-size:10px;vertical-align:middle;"></span></button></li>
-    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-res"  type="button"><i class="fas fa-chart-bar me-2"></i>Final Results</button></li>
+    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-tw"    type="button"><i class="fas fa-users-cog me-2"></i>Teamwork &amp; Peer Eval</button></li>
+    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-ex"    type="button"><i class="fas fa-user-tie me-2"></i>Examiner Assignment</button></li>
+    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-tasks" type="button"><i class="fas fa-check-circle me-2" id="tasks-tab-icon" style="color:#22c55e;"></i>My Tasks</button></li>
+    <li class="nav-item"><button class="nav-link"        data-bs-toggle="tab" data-bs-target="#tab-res"   type="button"><i class="fas fa-chart-bar me-2"></i>Final Results</button></li>
   </ul>
 
   <div class="tab-content tab-body">
 
     <!-- ══════════ TAB 1: REGISTRATION ══════════ -->
     <div class="tab-pane fade show active" id="tab-reg">
-
-      <!-- Pending Actions Panel (non-admin only, auto-hidden when empty) -->
-      <div id="tasks-panel" class="d-none mb-4">
-        <div class="card border-0" style="border-radius:10px;overflow:hidden;box-shadow:0 2px 14px rgba(0,0,0,.09);border-left:4px solid #f59e0b !important;">
-          <div class="card-header d-flex align-items-center justify-content-between py-2 px-4" style="background:#fffbeb;border-bottom:1px solid #fde68a;">
-            <div class="d-flex align-items-center gap-2">
-              <i class="fas fa-clock" style="color:#d97706;font-size:15px;"></i>
-              <span class="fw-bold" style="font-size:15px;color:#1f2937;">Pending Actions</span>
-              <span class="badge rounded-pill" id="tasks-total-badge" style="background:#d97706;font-size:11px;">0</span>
-            </div>
-            <button class="btn btn-sm btn-link p-0 text-muted" onclick="Tasks.toggle()" title="Collapse / Expand">
-              <i class="fas fa-chevron-up" id="tasks-toggle-icon" style="font-size:12px;"></i>
-            </button>
-          </div>
-          <div id="tasks-body" class="card-body p-0 bg-white">
-            <div id="tasks-list"></div>
-          </div>
-        </div>
-      </div>
 
       <div class="section-hdr">
         <h5><i class="fas fa-plus-circle me-2 text-primary"></i>Register New Project</h5>
@@ -550,6 +532,21 @@
       </div>
     </div>
     <!-- end Tab 3 -->
+
+    <!-- ══════════ TAB: MY TASKS ══════════ -->
+    <div class="tab-pane fade" id="tab-tasks">
+      <!-- All-good state (default) -->
+      <div id="tasks-all-good" class="text-center py-5">
+        <div style="width:80px;height:80px;background:#dcfce7;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;">
+          <i class="fas fa-check" style="font-size:36px;color:#22c55e;"></i>
+        </div>
+        <h5 class="fw-bold mb-2" style="color:#15803d;">All Tasks Complete</h5>
+        <p class="text-muted mb-0">All grading responsibilities are up to date. Nothing pending at this time.</p>
+      </div>
+      <!-- Pending list (shown when there are pending tasks) -->
+      <div id="tasks-pending-list" class="d-none"></div>
+    </div>
+    <!-- end My Tasks Tab -->
 
     <!-- ══════════ TAB 4: FINAL RESULTS ══════════ -->
     <div class="tab-pane fade" id="tab-res">

@@ -267,7 +267,7 @@ const App = {
     document.querySelector('[data-bs-target="#tab-ex"]').addEventListener('shown.bs.tab', () => Ex.loadProjects());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('shown.bs.tab', () => TW.refreshProjectList());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('hide.bs.tab', () => TW.stopPolling());
-    document.querySelector('[data-bs-target="#tab-reg"]').addEventListener('shown.bs.tab', () => Tasks.load());
+    document.querySelector('[data-bs-target="#tab-tasks"]').addEventListener('shown.bs.tab', () => Tasks.load());
     InactivityTimer.start();
     Tasks.load();
   },
@@ -741,13 +741,12 @@ const Reg = {
   },
 };
 
-// ── Pending Actions Panel ──────────────────────────────────────────────
+// ── My Tasks Tab ───────────────────────────────────────────────────────
 
 const Tasks = {
   _data: null,
 
   async load() {
-    if (!Auth.supervisor || Auth.supervisor.isAdmin) return;
     try {
       const res = await gsrAuth('getMyPendingTasks');
       if (!res || !res.success) return;
@@ -757,19 +756,32 @@ const Tasks = {
   },
 
   _render() {
-    const panel = document.getElementById('tasks-panel');
-    if (!panel) return;
     const { twTasks = [], examTasks = [], week14Label = '', semEndLabel = '' } = this._data || {};
     const total = twTasks.length + examTasks.length;
 
-    const twBadge = document.getElementById('badge-tw-tab');
-    const exBadge = document.getElementById('badge-ex-tab');
-    if (twBadge) { twBadge.textContent = twTasks.length;   twBadge.classList.toggle('d-none', twTasks.length   === 0); }
-    if (exBadge) { exBadge.textContent = examTasks.length; exBadge.classList.toggle('d-none', examTasks.length === 0); }
+    const tabIcon = document.getElementById('tasks-tab-icon');
+    if (tabIcon) {
+      if (total === 0) {
+        tabIcon.className = 'fas fa-check-circle me-2';
+        tabIcon.style.color = '#22c55e';
+      } else {
+        tabIcon.className = 'fas fa-exclamation-circle me-2';
+        tabIcon.style.color = '#f59e0b';
+      }
+    }
 
-    if (total === 0) { panel.classList.add('d-none'); return; }
-    panel.classList.remove('d-none');
-    document.getElementById('tasks-total-badge').textContent = total;
+    const allGoodEl = document.getElementById('tasks-all-good');
+    const pendingEl = document.getElementById('tasks-pending-list');
+    if (!allGoodEl || !pendingEl) return;
+
+    if (total === 0) {
+      allGoodEl.classList.remove('d-none');
+      pendingEl.classList.add('d-none');
+      pendingEl.innerHTML = '';
+      return;
+    }
+    allGoodEl.classList.add('d-none');
+    pendingEl.classList.remove('d-none');
 
     const fmtDate = iso => {
       if (!iso) return '';
@@ -854,7 +866,7 @@ const Tasks = {
       });
     }
 
-    document.getElementById('tasks-list').innerHTML = html;
+    pendingEl.innerHTML = html;
   },
 
   _goToTW(projectId) {
@@ -873,14 +885,6 @@ const Tasks = {
       if (++attempts < 20) setTimeout(trySelect, 150);
     };
     setTimeout(trySelect, 200);
-  },
-
-  toggle() {
-    const body = document.getElementById('tasks-body');
-    const icon = document.getElementById('tasks-toggle-icon');
-    if (!body) return;
-    const collapsed = body.classList.toggle('d-none');
-    if (icon) icon.className = collapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
   },
 };
 
