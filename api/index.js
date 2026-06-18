@@ -192,11 +192,32 @@ module.exports = async function handler(req, res) {
     return wTotal > 0 ? wSum / wTotal : 0;
   }
 
-  const GRADE_BORDERS = [54, 59, 64, 69, 72, 75, 79, 82, 85];
+  const ALL_BOUNDARIES    = [54, 59, 64, 69, 72, 75, 79, 82, 85, 89, 94];
+  const DEFAULT_BOOSTED   = [54, 59, 64, 69, 72, 75, 79, 82, 85];
 
-  function letterGrade(score) {
+  async function getActiveBorders() {
+    try {
+      await sql`CREATE TABLE IF NOT EXISTS grade_boost_config (
+        boundary INT PRIMARY KEY,
+        boosted  BOOLEAN NOT NULL DEFAULT TRUE,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`;
+      const count = await sql`SELECT COUNT(*) AS c FROM grade_boost_config`;
+      if (!count[0] || Number(count[0].c) === 0) {
+        for (const b of ALL_BOUNDARIES) {
+          await sql`INSERT INTO grade_boost_config (boundary, boosted)
+                    VALUES (${b}, ${DEFAULT_BOOSTED.includes(b)})
+                    ON CONFLICT DO NOTHING`;
+        }
+      }
+      const rows = await sql`SELECT boundary FROM grade_boost_config WHERE boosted = TRUE ORDER BY boundary`;
+      return rows.map(r => Number(r.boundary));
+    } catch { return DEFAULT_BOOSTED; }
+  }
+
+  function letterGrade(score, boostBorders) {
     const rounded  = Math.round(score);
-    const adjusted = GRADE_BORDERS.includes(rounded) ? rounded + 1 : rounded;
+    const adjusted = (boostBorders || []).includes(rounded) ? rounded + 1 : rounded;
     if (adjusted >= 95) return 'A+'; if (adjusted >= 90) return 'A';
     if (adjusted >= 86) return 'A-'; if (adjusted >= 83) return 'B+';
     if (adjusted >= 80) return 'B';  if (adjusted >= 76) return 'B-';
@@ -1193,6 +1214,8 @@ module.exports = async function handler(req, res) {
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
 
+        const activeBorders = await getActiveBorders();
+
         const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg, allExaminers] = await Promise.all([
           sql`SELECT * FROM projects`,
           sql`SELECT * FROM students`,
@@ -1292,7 +1315,7 @@ module.exports = async function handler(req, res) {
               isSolo: projStudents.length === 1,
               twDetails, peerDetails, indPct: rnd(indPct), peerPct: rnd(peerPct), twScore: rnd(twScore),
               repTable, presTable,
-              summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: Math.round(final), boosted: GRADE_BORDERS.includes(Math.round(final)), letterGrade: letterGrade(final) },
+              summary: { teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct), finalGrade: Math.round(final), boosted: activeBorders.includes(Math.round(final)), letterGrade: letterGrade(final, activeBorders) },
             };
           });
 
@@ -1340,6 +1363,36 @@ module.exports = async function handler(req, res) {
         return ok({ success: true, projects: projectDetails, statistics: statsByType, abet: abetByType,
           meta: { year: `${now.getFullYear()}–${now.getFullYear()+1}`, semester: cfg.semester || '', department: 'ECE',
             weights: { tw: Math.round(twW*100), report: Math.round(repW*100), pres: Math.round(presW*100) } } });
+      }
+
+      // ─── Grade boost boundary configuration (Admin) ───────────────────
+      case 'getGradeBoostConfig': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
+        const borders = await getActiveBorders();
+        const activeSet = new Set(borders);
+        return ok({
+          success: true,
+          boundaries: ALL_BOUNDARIES.map(b => ({ boundary: b, boosted: activeSet.has(b) })),
+        });
+      }
+
+      case 'setGradeBoostConfig': {
+        const [sessionToken, config] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
+        await sql`CREATE TABLE IF NOT EXISTS grade_boost_config (
+          boundary INT PRIMARY KEY, boosted BOOLEAN NOT NULL DEFAULT TRUE,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+        for (const { boundary, boosted } of (config || [])) {
+          if (!ALL_BOUNDARIES.includes(Number(boundary))) continue;
+          await sql`INSERT INTO grade_boost_config (boundary, boosted, updated_at)
+                    VALUES (${Number(boundary)}, ${!!boosted}, NOW())
+                    ON CONFLICT (boundary) DO UPDATE SET boosted = EXCLUDED.boosted, updated_at = NOW()`;
+        }
+        return ok({ success: true });
       }
 
       // ─── Distribution report: per-user access management ──────────────
@@ -1486,6 +1539,8 @@ module.exports = async function handler(req, res) {
         const [sessionToken] = args;
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
+
+        const activeBorders = await getActiveBorders();
 
         const [allProjects, allStudents, twGrades, peerEvals, exGrades, allSups, exCfg, peerCfg, allExaminers] = await Promise.all([
           sql`SELECT * FROM projects`,
@@ -1651,8 +1706,8 @@ module.exports = async function handler(req, res) {
             projectId: student.project_id, projectTitle: project ? project.title : '—',
             projectType: pt, projectProgram: project ? (project.program_type || '') : '',
             teamworkPct: rnd(twScore), reportPct: rnd(repPct), presPct: rnd(presPct),
-            finalGrade: finalRounded, boosted: GRADE_BORDERS.includes(finalRounded),
-            letterGrade: letterGrade(final),
+            finalGrade: finalRounded, boosted: activeBorders.includes(finalRounded),
+            letterGrade: letterGrade(final, activeBorders),
             isSolo, peerWarning: !isSolo && peer.length === 0,
           };
         });
