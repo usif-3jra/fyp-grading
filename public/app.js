@@ -222,8 +222,6 @@ const App = {
     if (inboxBtn)    inboxBtn.classList.toggle('d-none', !isAdmin);
     const progSel    = document.getElementById('res-filter-program');
     if (progSel)     progSel.classList.toggle('d-none', !isAdmin);
-    const distBtn    = document.getElementById('btn-export-distribution');
-    if (distBtn)     distBtn.classList.toggle('d-none', !isAdmin);
 
 
     if (!isAdmin) {
@@ -1841,6 +1839,8 @@ const Res = {
   async load() {
     const _expBtn = document.getElementById('btn-export-results');
     if (_expBtn) _expBtn.disabled = true;
+    const _exlBtn = document.getElementById('btn-export-excel');
+    if (_exlBtn) _exlBtn.disabled = true;
     Spinner.show();
     try {
       const res = await gsrAuth('getFinalResults');
@@ -1898,6 +1898,8 @@ const Res = {
     this._renderSummary(this.abetByType, program ? this._computeStats(filtered) : this.statsByType);
     const expBtn = document.getElementById('btn-export-results');
     if (expBtn) expBtn.disabled = filtered.length === 0;
+    const exlBtn = document.getElementById('btn-export-excel');
+    if (exlBtn) exlBtn.disabled = filtered.length === 0;
   },
 
   _computeStats(data) {
@@ -2610,6 +2612,101 @@ const Res = {
       Toast.show('Grade Distribution Report downloaded.');
     } catch (e) { Toast.show('Report error: ' + (e.message || e), 'error'); console.error(e); }
     finally { Spinner.hide(); }
+  },
+
+  // ── Excel summary export (all users) ─────────────────────────────────
+  exportExcelSummary() {
+    if (!this.allResults || !this.allResults.length) {
+      Toast.show('Load results first.', 'warning'); return;
+    }
+    if (typeof XLSX === 'undefined') {
+      Toast.show('SheetJS library not loaded — please refresh the page.', 'error'); return;
+    }
+
+    const typeFilter   = (document.getElementById('res-filter-type')?.value || '').trim();
+    const typesToExport = typeFilter
+      ? [typeFilter]
+      : ['FYP1', 'FYP2'].filter(pt => this.allResults.some(r => r.projectType === pt));
+
+    if (!typesToExport.length) { Toast.show('No data to export.', 'warning'); return; }
+
+    const wb = XLSX.utils.book_new();
+    const gradeOrder = ['A+','A','A-','B+','B','B-','C+','C','C-','D+','D','F'];
+    const genDate = new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' });
+
+    for (const pt of typesToExport) {
+      const rows = this.allResults.filter(r => r.projectType === pt);
+      if (!rows.length) continue;
+
+      const stats  = this.statsByType[pt] || {};
+      const mean   = parseFloat(stats.mean) || 0;
+      const stddev = parseFloat(stats.sd)   || 0;
+      const aoa    = [];
+
+      // ── Header block ──────────────────────────────────────────────────
+      aoa.push(['Beirut Arab University — Faculty of Engineering']);
+      aoa.push(['Final Year Project Management & Grading System']);
+      aoa.push([`${pt} Results Summary  ·  Generated: ${genDate}`]);
+      aoa.push([]);
+
+      // ── Student results table ─────────────────────────────────────────
+      aoa.push(['#','Student Name','Student ID','Project Title','Type',
+                'Teamwork %','Report %','Presentation %','Weighted %','Final Grade','Letter Grade']);
+      rows.forEach((r, i) => {
+        const fg = r.finalGrade + (r.boosted ? 1 : 0);
+        aoa.push([
+          i + 1,
+          r.studentName,
+          r.studentId,
+          r.projectTitle,
+          r.projectType,
+          r.teamworkPct + '%',
+          r.reportPct   + '%',
+          r.presPct     + '%',
+          r.finalGrade  + '%',
+          fg + '%' + (r.boosted ? ' ↑' : ''),
+          r.letterGrade
+        ]);
+      });
+
+      // ── Grade statistics ──────────────────────────────────────────────
+      aoa.push([]);
+      aoa.push(['Grade Distribution Summary']);
+      aoa.push(['Total Students', rows.length]);
+      if (stats.count) {
+        aoa.push(['Average Grade', mean.toFixed(1) + '%',
+          mean >= 75 && mean <= 90 ? 'Within Range (75–90)'
+            : mean < 75 ? 'Below 75 — Action Required'
+            : 'Above 90 — Review Grading']);
+        aoa.push(['Standard Deviation', stddev.toFixed(2),
+          stddev >= 5 && stddev <= 15 ? 'Normal Range (5–15)'
+            : stddev < 5 ? 'Too Uniform (SD < 5)'
+            : 'High Variance (SD > 15)']);
+      }
+
+      // ── Letter grade breakdown ────────────────────────────────────────
+      aoa.push([]);
+      aoa.push(['Letter Grade Breakdown']);
+      aoa.push(['Letter Grade', 'Count', 'Percentage']);
+      const counts = {};
+      rows.forEach(r => { counts[r.letterGrade] = (counts[r.letterGrade] || 0) + 1; });
+      const allGrades = [...new Set([...gradeOrder, ...Object.keys(counts)])];
+      allGrades.filter(g => counts[g]).forEach(g => {
+        aoa.push([g, counts[g], ((counts[g] / rows.length) * 100).toFixed(1) + '%']);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [
+        {wch:4},{wch:28},{wch:14},{wch:42},{wch:6},
+        {wch:11},{wch:10},{wch:15},{wch:11},{wch:13},{wch:13}
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, pt);
+    }
+
+    const label   = typeFilter || 'All';
+    const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    XLSX.writeFile(wb, `FYP_Results_Summary_${label}_${dateStr}.xlsx`);
+    Toast.show('Excel summary downloaded.');
   },
 };
 
