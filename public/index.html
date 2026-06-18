@@ -103,7 +103,7 @@
             <i class="fas fa-key me-2 text-primary"></i>Change Password
           </a></li>
           <li><hr class="dropdown-divider"/></li>
-          <li><span class="dropdown-item-text" style="font-family:monospace;font-size:10px;color:#94a3b8;">v02.18-06-26 R01</span></li>
+          <li><span class="dropdown-item-text" style="font-family:monospace;font-size:10px;color:#94a3b8;">v02.18-06-26 R03</span></li>
         </ul>
       </div>
       <button class="btn btn-sm btn-danger" onclick="Auth.logout()" title="Logout">
@@ -564,7 +564,7 @@
           <button class="btn btn-sm btn-primary" onclick="Res.load()"><i class="fas fa-sync me-1"></i>Load Results</button>
           <button class="btn btn-sm btn-outline-success" id="btn-export-excel" disabled onclick="Res.exportExcelSummary()" title="Downloads the summary table currently visible — student list + grade stats. For full rubric detail use Export PDF."><i class="fas fa-file-excel me-1"></i>Export Excel <small class="opacity-75">(Summary)</small></button>
           <button class="btn btn-sm btn-outline-danger" id="btn-export-results" disabled onclick="Res.exportPDF()" title="Full detailed grading report with rubric breakdowns for all students."><i class="fas fa-file-pdf me-1"></i>Export PDF <small class="opacity-75">(Detailed)</small></button>
-          <button class="btn btn-sm btn-outline-info" id="btn-export-distribution" onclick="Res.exportDistributionReport()"><i class="fas fa-chart-bar me-1"></i>Distribution Report</button>
+          <button class="btn btn-sm btn-outline-info d-none" id="btn-export-distribution" onclick="Res.exportDistributionReport()"><i class="fas fa-chart-bar me-1"></i>Distribution Report</button>
         </div>
       </div>
       <div id="res-incomplete-warning" class="d-none"></div>
@@ -705,9 +705,40 @@
             </tbody>
           </table>
         </div>
+
+        <!-- ── Distribution Report Access ── -->
+        <hr class="my-4"/>
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <h6 class="mb-0 fw-bold">
+              <i class="fas fa-chart-bar me-2 text-info"></i>Distribution Report Access
+            </h6>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="Admin.distAccessSelectAll(true)">
+                <i class="fas fa-check-square me-1"></i>All
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="Admin.distAccessSelectAll(false)">
+                <i class="far fa-square me-1"></i>None
+              </button>
+            </div>
+          </div>
+          <p class="text-muted small mb-2">
+            Choose which supervisors can download the Grade Distribution PDF Report. The admin always has access regardless.
+          </p>
+          <div id="distAccessList"
+               style="max-height:220px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;">
+            <div class="text-center text-muted py-3 small">
+              <span class="spinner-border spinner-border-sm me-2"></span>Loading…
+            </div>
+          </div>
+          <button class="btn btn-info btn-sm mt-2" onclick="Admin.saveDistributionAccess()">
+            <i class="fas fa-shield-alt me-1"></i>Save Access Permissions
+          </button>
+        </div>
+
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         <button class="btn btn-primary" onclick="Admin.saveCredentials()">
           <i class="fas fa-save me-1"></i>Save &amp; Send Selected Emails
         </button>

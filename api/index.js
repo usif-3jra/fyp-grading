@@ -1342,13 +1342,72 @@ module.exports = async function handler(req, res) {
             weights: { tw: Math.round(twW*100), report: Math.round(repW*100), pres: Math.round(presW*100) } } });
       }
 
-      // ─── Criteria Grade Distribution (Admin statistical report) ──────
+      // ─── Distribution report: per-user access management ──────────────
+      case 'getMyDistributionAccess': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session) return ok({ success: false, message: 'Session expired.' });
+        if (session.is_admin) return ok({ success: true, canAccess: true });
+        await sql`CREATE TABLE IF NOT EXISTS distribution_report_access (
+          supervisor_id TEXT PRIMARY KEY,
+          granted_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+        const rows = await sql`SELECT 1 FROM distribution_report_access WHERE supervisor_id = ${session.supervisor_id}`;
+        return ok({ success: true, canAccess: rows.length > 0 });
+      }
+
+      case 'getDistributionReportAccess': {
+        const [sessionToken] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
+        await sql`CREATE TABLE IF NOT EXISTS distribution_report_access (
+          supervisor_id TEXT PRIMARY KEY,
+          granted_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+        const allSups  = await sql`SELECT * FROM supervisors WHERE supervisor_id != ${ADMIN_ID} ORDER BY name`;
+        const granted  = await sql`SELECT supervisor_id FROM distribution_report_access`;
+        const grantSet = new Set(granted.map(r => r.supervisor_id));
+        return ok({
+          success: true,
+          supervisors: allSups.map(r => ({
+            id:        r.supervisor_id,
+            name:      r.name,
+            program:   r.program   || '',
+            email:     r.email     || '',
+            hasAccess: grantSet.has(r.supervisor_id),
+          })),
+        });
+      }
+
+      case 'setDistributionReportAccess': {
+        const [sessionToken, allowedIds] = args;
+        const session = await verifySession(sessionToken);
+        if (!session || !session.is_admin) return ok({ success: false, message: 'Unauthorized.' });
+        await sql`CREATE TABLE IF NOT EXISTS distribution_report_access (
+          supervisor_id TEXT PRIMARY KEY,
+          granted_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`;
+        await sql`DELETE FROM distribution_report_access`;
+        for (const id of (allowedIds || [])) {
+          if (id) await sql`INSERT INTO distribution_report_access (supervisor_id)
+                            VALUES (${String(id)}) ON CONFLICT DO NOTHING`;
+        }
+        return ok({ success: true });
+      }
+
+      // ─── Criteria Grade Distribution ──────────────────────────────────
       case 'getCriteriaDistribution': {
         const [sessionToken] = args;
         const session = await verifySession(sessionToken);
         if (!session) return ok({ success: false, message: 'Session expired.' });
-        if (!session.is_admin) return ok({ success: false, message: 'Only the admin can view this report.' });
-
+        if (!session.is_admin) {
+          await sql`CREATE TABLE IF NOT EXISTS distribution_report_access (
+            supervisor_id TEXT PRIMARY KEY,
+            granted_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          )`;
+          const grant = await sql`SELECT 1 FROM distribution_report_access WHERE supervisor_id = ${session.supervisor_id}`;
+          if (!grant.length) return ok({ success: false, message: 'You do not have permission to download this report. Contact the admin.' });
+        }
         const [allProjects, twGrades, peerEvals, exGrades, exCfg, peerCfg] = await Promise.all([
           sql`SELECT * FROM projects`,
           sql`SELECT * FROM tw_grades WHERE grade_type = 'Individual'`,
