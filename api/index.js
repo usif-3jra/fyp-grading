@@ -192,7 +192,7 @@ module.exports = async function handler(req, res) {
     return wTotal > 0 ? wSum / wTotal : 0;
   }
 
-  const GRADE_BORDERS = [54, 59, 64, 69, 72, 75, 79, 82, 85, 89];
+  const GRADE_BORDERS = [54, 59, 64, 69, 72, 75, 79, 82, 85];
 
   function letterGrade(score) {
     const rounded  = Math.round(score);
