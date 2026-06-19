@@ -2572,7 +2572,7 @@ const Res = {
       const orange = [209, 88, 12];
       const steelBlue = [37, 99, 235];
       const drawGroupedBar = (y2, note, groups, series, scaleMax, fmtVal) => {
-        const cH = 46, aPadL = 14, pX2 = margin + aPadL, pW2 = cW - aPadL, pY2 = y2 + 2, pH2 = cH;
+        const cH = 46, aPadL = 14, pX2 = margin + aPadL, pW2 = cW - aPadL, pH2 = cH;
         const nG = Math.max(groups.length, 1), nS = series.length;
         const gW = pW2 / nG;
         const bW = Math.min(gW * 0.65 / nS, 9);
@@ -2580,6 +2580,7 @@ const Res = {
         const totalBW = nS * bW + (nS - 1) * bGap;
 
         y2 = sectionLabel(y2, note);
+        const pY2 = y2 + 2;
 
         const steps = 5;
         doc.setLineWidth(0.1); doc.setDrawColor(225, 225, 225);
