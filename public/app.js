@@ -2568,45 +2568,125 @@ const Res = {
       doc.setTextColor(0, 0, 0);
       y += 7;
 
-      // ── Table 1: Project & Student counts per program ─────────────
-      y = groupHeader(y, 'Project & Student Overview by Program');
-      const g = res.grandTotal || {};
-      const overviewBody = [
-        ...progList.map(p => {
-          const s = res.programStats[p] || {};
-          return [p, s.fyp1Projects||0, s.fyp1Students||0, s.fyp2Projects||0, s.fyp2Students||0, s.totalProjects||0, s.totalStudents||0];
-        }),
-        ['GRAND TOTAL', g.fyp1Projects||0, g.fyp1Students||0, g.fyp2Projects||0, g.fyp2Students||0, g.totalProjects||0, g.totalStudents||0],
-      ];
-      doc.autoTable({
-        startY: y,
-        head: [['Program', 'FYP1 Projects', 'FYP1 Students', 'FYP2 Projects', 'FYP2 Students', 'Total Projects', 'Total Students']],
-        body: overviewBody,
-        ...tblBase,
-        ...totalRowCB(overviewBody.length - 1),
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 42 }, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'} },
-      });
-      y = doc.lastAutoTable.finalY + 5;
+      // ── Grouped bar chart helper ──────────────────────────────────
+      const orange = [209, 88, 12];
+      const steelBlue = [37, 99, 235];
+      const drawGroupedBar = (y2, note, groups, series, scaleMax, fmtVal) => {
+        const cH = 46, aPadL = 14, pX2 = margin + aPadL, pW2 = cW - aPadL, pY2 = y2 + 2, pH2 = cH;
+        const nG = Math.max(groups.length, 1), nS = series.length;
+        const gW = pW2 / nG;
+        const bW = Math.min(gW * 0.65 / nS, 9);
+        const bGap = Math.min(0.8, bW * 0.08);
+        const totalBW = nS * bW + (nS - 1) * bGap;
 
-      // ── Table 2: Examiner & student statistics ────────────────────
-      y = ensureSpace(y, 55);
+        y2 = sectionLabel(y2, note);
+
+        const steps = 5;
+        doc.setLineWidth(0.1); doc.setDrawColor(225, 225, 225);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8); doc.setTextColor(130, 130, 130);
+        for (let si = 0; si <= steps; si++) {
+          const sVal = (scaleMax / steps) * si;
+          const gy2 = pY2 + pH2 - (sVal / scaleMax) * pH2;
+          doc.line(pX2, gy2, pX2 + pW2, gy2);
+          doc.text(fmtVal(sVal, true), pX2 - 2, gy2 + 1.1, { align: 'right' });
+        }
+
+        groups.forEach((grp, gi) => {
+          const gCx = pX2 + gi * gW + gW / 2;
+          const gLeft = gCx - totalBW / 2;
+          series.forEach((s2, si2) => {
+            const val = s2.data[gi] || 0;
+            const bh = scaleMax > 0 ? (val / scaleMax) * pH2 : 0;
+            const bx = gLeft + si2 * (bW + bGap);
+            const by = pY2 + pH2 - bh;
+            doc.setFillColor(...s2.color);
+            if (bh > 0.3) doc.rect(bx, by, bW, bh, 'F');
+            if (val > 0 || bh > 0.3) {
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(5.2); doc.setTextColor(...s2.color);
+              doc.text(fmtVal(val), bx + bW / 2, Math.min(by - 0.8, pY2 + pH2 - 1), { align: 'center' });
+            }
+          });
+          const lbl = grp.length > 10 ? grp.substring(0, 9) + '…' : grp;
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(55, 55, 55);
+          doc.text(lbl, gCx, pY2 + pH2 + 4, { align: 'center' });
+        });
+
+        doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+        doc.line(pX2, pY2 + pH2, pX2 + pW2, pY2 + pH2);
+        doc.setLineWidth(0.1); doc.setDrawColor(0, 0, 0);
+
+        // legend
+        const legY = pY2 + pH2 + 9;
+        let legX = margin;
+        series.forEach(s2 => {
+          doc.setFillColor(...s2.color); doc.rect(legX, legY, 4, 3, 'F');
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 55, 55);
+          const lw = doc.getTextWidth(s2.label);
+          doc.text(s2.label, legX + 5.5, legY + 2.5);
+          legX += lw + 12;
+        });
+        doc.setTextColor(0, 0, 0);
+        return legY + 7;
+      };
+
+      const roundUp5 = v => Math.max(1, Math.ceil(v / 5) * 5);
+      const g = res.grandTotal || {};
+
+      // ── Charts 1 & 2: Project & Student Overview ──────────────────
+      y = groupHeader(y, 'Project & Student Overview by Program');
+
+      const f1ProjData = progList.map(p => (res.programStats[p] || {}).fyp1Projects || 0);
+      const f2ProjData = progList.map(p => (res.programStats[p] || {}).fyp2Projects || 0);
+      const maxProj = roundUp5(Math.max(1, ...f1ProjData.map((v, i) => v + f2ProjData[i])));
+      y = drawGroupedBar(y, 'Projects per Program', progList,
+        [{ label: 'FYP1 Projects', color: navy, data: f1ProjData }, { label: 'FYP2 Projects', color: teal, data: f2ProjData }],
+        maxProj, (v, ax) => ax ? (Number.isInteger(v) ? String(v) : v.toFixed(0)) : String(Math.round(v)));
+
+      y = ensureSpace(y, 62);
+      const f1StuData = progList.map(p => (res.programStats[p] || {}).fyp1Students || 0);
+      const f2StuData = progList.map(p => (res.programStats[p] || {}).fyp2Students || 0);
+      const maxStu = roundUp5(Math.max(1, ...f1StuData.map((v, i) => v + f2StuData[i])));
+      y = drawGroupedBar(y, 'Students per Program', progList,
+        [{ label: 'FYP1 Students', color: navy, data: f1StuData }, { label: 'FYP2 Students', color: teal, data: f2StuData }],
+        maxStu, (v, ax) => ax ? (Number.isInteger(v) ? String(v) : v.toFixed(0)) : String(Math.round(v)));
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...navy);
+      doc.text(`Grand Total: ${g.totalProjects||0} projects  (${g.fyp1Projects||0} FYP1 + ${g.fyp2Projects||0} FYP2)   ·   ${g.totalStudents||0} students  (${g.fyp1Students||0} FYP1 + ${g.fyp2Students||0} FYP2)`, margin, y + 1);
+      doc.setTextColor(0, 0, 0);
+      y += 7;
+
+      // ── Charts 3 & 4: Examiner & Student Statistics ───────────────
+      y = ensureSpace(y, 70);
       y = groupHeader(y, 'Examiner & Student Statistics by Program');
-      const examBody = [
-        ...progList.map(p => {
-          const s = res.programStats[p] || {};
-          return [p, s.avgStudentsPerProject||0, s.insideCount||0, s.outsideCount||0, s.industryCount||0, s.avgInsidePerGroup||0, s.avgOutsidePerGroup||0, s.avgIndustryPerGroup||0];
-        }),
-        ['GRAND TOTAL', g.avgStudentsPerProject||0, g.insideCount||0, g.outsideCount||0, g.industryCount||0, g.avgInsidePerGroup||0, g.avgOutsidePerGroup||0, g.avgIndustryPerGroup||0],
-      ];
-      doc.autoTable({
-        startY: y,
-        head: [['Program', 'Avg Students / Project', '# Inside Examiners', '# Outside Examiners', '# Industry Examiners', 'Avg Inside / Group', 'Avg Outside / Group', 'Avg Industry / Group']],
-        body: examBody,
-        ...tblBase,
-        ...totalRowCB(examBody.length - 1),
-        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 36 }, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'}, 7:{halign:'center'} },
-      });
-      y = doc.lastAutoTable.finalY + 5;
+
+      const insData     = progList.map(p => (res.programStats[p] || {}).insideCount    || 0);
+      const outData     = progList.map(p => (res.programStats[p] || {}).outsideCount   || 0);
+      const indData     = progList.map(p => (res.programStats[p] || {}).industryCount  || 0);
+      const maxExCnt    = roundUp5(Math.max(1, ...progList.map((_, i) => insData[i] + outData[i] + indData[i])));
+      y = drawGroupedBar(y, 'Number of Examiners per Program by Role', progList,
+        [{ label: 'Inside University', color: navy, data: insData },
+         { label: 'Outside/Program', color: teal, data: outData },
+         { label: 'Industry', color: orange, data: indData }],
+        maxExCnt, (v, ax) => ax ? (Number.isInteger(v) ? String(v) : v.toFixed(0)) : String(Math.round(v)));
+
+      y = ensureSpace(y, 62);
+      const avgStuData  = progList.map(p => (res.programStats[p] || {}).avgStudentsPerProject || 0);
+      const avgInsData  = progList.map(p => (res.programStats[p] || {}).avgInsidePerGroup     || 0);
+      const avgOutData  = progList.map(p => (res.programStats[p] || {}).avgOutsidePerGroup    || 0);
+      const avgIndData  = progList.map(p => (res.programStats[p] || {}).avgIndustryPerGroup   || 0);
+      const maxAvgVal   = Math.max(0.5, ...progList.map((_, i) => Math.max(avgStuData[i], avgInsData[i], avgOutData[i], avgIndData[i])));
+      const niceAvgMax  = Math.ceil(maxAvgVal * 1.25 * 10) / 10;
+      y = drawGroupedBar(y, 'Average per Project Group (students & examiners)', progList,
+        [{ label: 'Avg Students', color: steelBlue, data: avgStuData },
+         { label: 'Avg Inside',   color: navy,      data: avgInsData },
+         { label: 'Avg Outside',  color: teal,      data: avgOutData },
+         { label: 'Avg Industry', color: orange,    data: avgIndData }],
+        niceAvgMax, (v, ax) => v === 0 ? '0' : v < 1 ? v.toFixed(2) : v.toFixed(1));
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...navy);
+      doc.text(`Grand Total: ${g.insideCount||0} inside + ${g.outsideCount||0} outside + ${g.industryCount||0} industry examiners   ·   Avg per group: ${g.avgStudentsPerProject||0} students, ${g.avgInsidePerGroup||0} inside, ${g.avgOutsidePerGroup||0} outside, ${g.avgIndustryPerGroup||0} industry`, margin, y + 1, { maxWidth: cW });
+      doc.setTextColor(0, 0, 0);
+      y += 9;
 
       // ── Table 3: Grading activity summary ─────────────────────────
       y = ensureSpace(y, 60);
