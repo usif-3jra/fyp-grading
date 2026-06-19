@@ -1461,13 +1461,15 @@ module.exports = async function handler(req, res) {
           const grant = await sql`SELECT 1 FROM distribution_report_access WHERE supervisor_id = ${session.supervisor_id}`;
           if (!grant.length) return ok({ success: false, message: 'You do not have permission to download this report. Contact the admin.' });
         }
-        const [allProjects, twGrades, peerEvals, exGrades, exCfg, peerCfg] = await Promise.all([
+        const [allProjects, twGrades, peerEvals, exGrades, exCfg, peerCfg, allStudents, allExaminers] = await Promise.all([
           sql`SELECT * FROM projects`,
           sql`SELECT * FROM tw_grades WHERE grade_type = 'Individual'`,
           sql`SELECT * FROM peer_evaluations`,
           sql`SELECT * FROM examiner_grades`,
           sql`SELECT * FROM examiner_config ORDER BY id`,
           sql`SELECT * FROM peer_config ORDER BY question_no`,
+          sql`SELECT project_id FROM students`,
+          sql`SELECT assignment_id, project_id, examiner_type FROM examiners`,
         ]);
         const indRubric = await getIndividualRubric();
         const cfg = await getTWConfig();
@@ -1526,12 +1528,98 @@ module.exports = async function handler(req, res) {
         ['FYP1', 'FYP2'].forEach(t => { const list = entries.filter(e => e.type === t); if (list.length) byType[t] = makeDist(list); });
         const byCategory = {};
         ['TW', 'Peer', 'Report', 'Presentation'].forEach(cat => { const list = entries.filter(e => e.category === cat); if (list.length) byCategory[cat] = makeDist(list); });
-        const programs = [...new Set(entries.map(e => e.program))].sort();
+        const programs = [...new Set(allProjects.map(p => p.program_type || 'Unspecified'))].sort();
         const byProgram = {};
         programs.forEach(p => { const list = entries.filter(e => e.program === p); if (list.length) byProgram[p] = makeDist(list); });
 
+        // ── Average grade & std dev per program/FYP type ─────────────────
+        const computeStats = list => {
+          const pcts = list.map(e => e.pct);
+          const n = pcts.length;
+          if (!n) return { avg: 0, std: 0, n: 0 };
+          const avg = pcts.reduce((a, b) => a + b, 0) / n;
+          const variance = pcts.reduce((a, b) => a + (b - avg) ** 2, 0) / n;
+          return { avg: rnd(avg), std: rnd(Math.sqrt(variance)), n };
+        };
+        const avgByProgramType = {};
+        programs.forEach(p => {
+          avgByProgramType[p] = {
+            FYP1: computeStats(entries.filter(e => e.program === p && e.type === 'FYP1')),
+            FYP2: computeStats(entries.filter(e => e.program === p && e.type === 'FYP2')),
+          };
+        });
+        const avgOverall = {
+          FYP1: computeStats(entries.filter(e => e.type === 'FYP1')),
+          FYP2: computeStats(entries.filter(e => e.type === 'FYP2')),
+        };
+
+        // ── Program summary (projects + students + examiners) ─────────────
+        const fyp1ProjIds = new Set(allProjects.filter(p => String(p.type) === 'FYP1').map(p => p.project_id));
+        const fyp2ProjIds = new Set(allProjects.filter(p => String(p.type) === 'FYP2').map(p => p.project_id));
+        const programStats = {};
+        programs.forEach(prog => {
+          const progProjs  = allProjects.filter(p => (p.program_type || 'Unspecified') === prog);
+          const f1Projs    = progProjs.filter(p => String(p.type) === 'FYP1');
+          const f2Projs    = progProjs.filter(p => String(p.type) === 'FYP2');
+          const f1IdSet    = new Set(f1Projs.map(p => p.project_id));
+          const f2IdSet    = new Set(f2Projs.map(p => p.project_id));
+          const allIdSet   = new Set(progProjs.map(p => p.project_id));
+          const f1Stu      = allStudents.filter(s => f1IdSet.has(s.project_id)).length;
+          const f2Stu      = allStudents.filter(s => f2IdSet.has(s.project_id)).length;
+          const totalProj  = progProjs.length;
+          const totalStu   = f1Stu + f2Stu;
+          const progExs    = allExaminers.filter(e => allIdSet.has(e.project_id));
+          const insideCnt  = progExs.filter(e => e.examiner_type === 'Inside University').length;
+          const outsideCnt = progExs.filter(e => e.examiner_type === 'Outside the Program/University').length;
+          const industryCnt= progExs.filter(e => e.examiner_type === 'Industry').length;
+          programStats[prog] = {
+            fyp1Projects: f1Projs.length, fyp1Students: f1Stu,
+            fyp2Projects: f2Projs.length, fyp2Students: f2Stu,
+            totalProjects: totalProj, totalStudents: totalStu,
+            insideCount: insideCnt, outsideCount: outsideCnt, industryCount: industryCnt,
+            avgStudentsPerProject: totalProj > 0 ? rnd(totalStu / totalProj) : 0,
+            avgInsidePerGroup:     totalProj > 0 ? rnd(insideCnt  / totalProj) : 0,
+            avgOutsidePerGroup:    totalProj > 0 ? rnd(outsideCnt / totalProj) : 0,
+            avgIndustryPerGroup:   totalProj > 0 ? rnd(industryCnt/ totalProj) : 0,
+          };
+        });
+        const gTotalProj = allProjects.length;
+        const gTotalStu  = allStudents.length;
+        const gInside    = allExaminers.filter(e => e.examiner_type === 'Inside University').length;
+        const gOutside   = allExaminers.filter(e => e.examiner_type === 'Outside the Program/University').length;
+        const gIndustry  = allExaminers.filter(e => e.examiner_type === 'Industry').length;
+        const grandTotal = {
+          fyp1Projects: allProjects.filter(p => String(p.type) === 'FYP1').length,
+          fyp1Students: allStudents.filter(s => fyp1ProjIds.has(s.project_id)).length,
+          fyp2Projects: allProjects.filter(p => String(p.type) === 'FYP2').length,
+          fyp2Students: allStudents.filter(s => fyp2ProjIds.has(s.project_id)).length,
+          totalProjects: gTotalProj, totalStudents: gTotalStu,
+          insideCount: gInside, outsideCount: gOutside, industryCount: gIndustry,
+          avgStudentsPerProject: gTotalProj > 0 ? rnd(gTotalStu / gTotalProj) : 0,
+          avgInsidePerGroup:     gTotalProj > 0 ? rnd(gInside   / gTotalProj) : 0,
+          avgOutsidePerGroup:    gTotalProj > 0 ? rnd(gOutside  / gTotalProj) : 0,
+          avgIndustryPerGroup:   gTotalProj > 0 ? rnd(gIndustry / gTotalProj) : 0,
+        };
+
+        // ── Grading criteria counts by role ───────────────────────────────
+        const exTypeMap = {};
+        allExaminers.forEach(e => { exTypeMap[e.assignment_id] = e.examiner_type; });
+        const twCriteriaGraded   = twGrades.filter(g => g.graded_by !== 'system').length;
+        const peerCriteriaGraded = peerEvals.length;
+        let insideReport = 0, insidePres = 0, outsideReport = 0, outsidePres = 0, industryPres = 0;
+        exGrades.forEach(g => {
+          const et  = exTypeMap[g.assignment_id] || '';
+          const cat = g.category === 'Presentation' ? 'pres' : 'report';
+          if      (et === 'Inside University')                 { if (cat === 'report') insideReport++; else insidePres++;  }
+          else if (et === 'Outside the Program/University')    { if (cat === 'report') outsideReport++; else outsidePres++; }
+          else if (et === 'Industry')                          { if (cat === 'pres')   industryPres++;                     }
+        });
+        const gradingCounts = { twCriteriaGraded, peerCriteriaGraded,
+          insideReport, insidePres, outsideReport, outsidePres, industryPres };
+
         const now2 = new Date();
         return ok({ success: true, buckets: bucketLabels, overall, byType, byCategory, byProgram,
+          programs, programStats, grandTotal, avgByProgramType, avgOverall, gradingCounts,
           meta: { year: `${now2.getFullYear()}–${now2.getFullYear()+1}`, semester: cfg.semester || '', department: 'ECE' } });
       }
 

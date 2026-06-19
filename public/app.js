@@ -2466,7 +2466,7 @@ const Res = {
     finally { Spinner.hide(); }
   },
 
-  // ── Admin-only: Criteria Grade Distribution statistical report ────────
+  // ── Admin-only: FYP Statistics & Grade Distribution report ────────────
   async exportDistributionReport() {
     Spinner.show();
     try {
@@ -2490,12 +2490,15 @@ const Res = {
       const { jsPDF } = window.jspdf;
       const W = 210, margin = 14, cW = W - 2 * margin, PAGE_H = 297, BOTTOM_MARGIN = 15;
       const navy = [30, 58, 95];
+      const teal = [14, 116, 144];
       const meta = res.meta || {};
-      const reportTitle = 'Grade Distribution — Criteria Statistics Report';
+      const progList = res.programs || [];
 
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
+      let currentTitle = '';
       const drawHdr = (subtitle) => {
+        currentTitle = subtitle;
         doc.setFillColor(...navy);
         doc.rect(0, 0, W, 27, 'F');
         let textX = W / 2, textMaxW = cW - 36;
@@ -2533,51 +2536,247 @@ const Res = {
       };
 
       const ensureSpace = (y, neededH) => {
-        if (y + neededH > PAGE_H - BOTTOM_MARGIN) { doc.addPage(); return drawHdr(reportTitle); }
+        if (y + neededH > PAGE_H - BOTTOM_MARGIN) { doc.addPage(); return drawHdr(currentTitle); }
         return y;
       };
 
-      const drawHistogram = (y, title, labels, values, total) => {
-        y = sectionLabel(y, `${title}  (n = ${total} graded ${total === 1 ? 'criterion' : 'criteria'})`);
-        const chartH = 52, axisPadL = 12, plotX = margin + axisPadL, plotW = cW - axisPadL, plotY = y + 2, plotH = chartH;
-
-        doc.setLineWidth(0.1); doc.setDrawColor(225, 225, 225);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(130, 130, 130);
-        [0, 25, 50, 75, 100].forEach(mark => {
-          const gy = plotY + plotH - (mark / 100) * plotH;
-          doc.line(plotX, gy, plotX + plotW, gy);
-          doc.text(`${mark}%`, plotX - 2, gy + 1.2, { align: 'right' });
-        });
-
-        const n = labels.length, slot = plotW / n, barW = slot * 0.62;
-        labels.forEach((lab, i) => {
-          const val = values[i] || 0;
-          const barH = (val / 100) * plotH;
-          const bx = plotX + i * slot + (slot - barW) / 2;
-          const by = plotY + plotH - barH;
-          doc.setFillColor(...navy);
-          if (barH > 0.3) doc.rect(bx, by, barW, barH, 'F');
-          if (val > 0) {
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(60, 60, 60);
-            doc.text(`${val}%`, bx + barW / 2, by - 1.2, { align: 'center' });
-          }
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(6.3); doc.setTextColor(70, 70, 70);
-          doc.text(lab, bx + barW / 2, plotY + plotH + 5, { align: 'center' });
-        });
-
-        doc.setDrawColor(150, 150, 150);
-        doc.line(plotX, plotY + plotH, plotX + plotW, plotY + plotH);
-        doc.setTextColor(0, 0, 0); doc.setDrawColor(0, 0, 0);
-        return plotY + plotH + 13;
+      // Shared autoTable base style
+      const tblBase = {
+        theme: 'grid',
+        styles: { fontSize: 7.5, cellPadding: 2.2, overflow: 'linebreak' },
+        headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: margin, right: margin },
       };
+      const totalRowCB = lastIdx => ({
+        willDrawCell: (d) => {
+          if (d.section === 'body' && d.row.index === lastIdx) {
+            d.cell.styles.fillColor = [30, 58, 95];
+            d.cell.styles.textColor = [255, 255, 255];
+            d.cell.styles.fontStyle = 'bold';
+          }
+        },
+      });
 
-      let y = drawHdr(reportTitle);
+      // ═══════════════════════════════════════════════════════════════
+      // PAGE 1 — Semester Overview
+      // ═══════════════════════════════════════════════════════════════
+      let y = drawHdr('FYP Semester Statistics — Overview');
+
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
+      doc.text(`Generated on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}`, margin, y + 1);
+      doc.setTextColor(0, 0, 0);
+      y += 7;
+
+      // ── Table 1: Project & Student counts per program ─────────────
+      y = groupHeader(y, 'Project & Student Overview by Program');
+      const g = res.grandTotal || {};
+      const overviewBody = [
+        ...progList.map(p => {
+          const s = res.programStats[p] || {};
+          return [p, s.fyp1Projects||0, s.fyp1Students||0, s.fyp2Projects||0, s.fyp2Students||0, s.totalProjects||0, s.totalStudents||0];
+        }),
+        ['GRAND TOTAL', g.fyp1Projects||0, g.fyp1Students||0, g.fyp2Projects||0, g.fyp2Students||0, g.totalProjects||0, g.totalStudents||0],
+      ];
+      doc.autoTable({
+        startY: y,
+        head: [['Program', 'FYP1 Projects', 'FYP1 Students', 'FYP2 Projects', 'FYP2 Students', 'Total Projects', 'Total Students']],
+        body: overviewBody,
+        ...tblBase,
+        ...totalRowCB(overviewBody.length - 1),
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 42 }, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'} },
+      });
+      y = doc.lastAutoTable.finalY + 5;
+
+      // ── Table 2: Examiner & student statistics ────────────────────
+      y = ensureSpace(y, 55);
+      y = groupHeader(y, 'Examiner & Student Statistics by Program');
+      const examBody = [
+        ...progList.map(p => {
+          const s = res.programStats[p] || {};
+          return [p, s.avgStudentsPerProject||0, s.insideCount||0, s.outsideCount||0, s.industryCount||0, s.avgInsidePerGroup||0, s.avgOutsidePerGroup||0, s.avgIndustryPerGroup||0];
+        }),
+        ['GRAND TOTAL', g.avgStudentsPerProject||0, g.insideCount||0, g.outsideCount||0, g.industryCount||0, g.avgInsidePerGroup||0, g.avgOutsidePerGroup||0, g.avgIndustryPerGroup||0],
+      ];
+      doc.autoTable({
+        startY: y,
+        head: [['Program', 'Avg Students / Project', '# Inside Examiners', '# Outside Examiners', '# Industry Examiners', 'Avg Inside / Group', 'Avg Outside / Group', 'Avg Industry / Group']],
+        body: examBody,
+        ...tblBase,
+        ...totalRowCB(examBody.length - 1),
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 36 }, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'}, 7:{halign:'center'} },
+      });
+      y = doc.lastAutoTable.finalY + 5;
+
+      // ── Table 3: Grading activity summary ─────────────────────────
+      y = ensureSpace(y, 60);
+      y = groupHeader(y, 'Grading Activity Summary — Criteria Graded per Role');
+      const gc = res.gradingCounts || {};
+      const actBodyRows = [
+        ['Supervisor',                             'Teamwork — Individual Rubric',     gc.twCriteriaGraded   || 0],
+        ['Student (Peer)',                          'Peer Evaluation Rubric',           gc.peerCriteriaGraded || 0],
+        ['Inside University Examiner',              'Report Rubric',                    gc.insideReport       || 0],
+        ['Inside University Examiner',              'Presentation Rubric',              gc.insidePres         || 0],
+        ['Outside the Program/Univ. Examiner',      'Report Rubric',                    gc.outsideReport      || 0],
+        ['Outside the Program/Univ. Examiner',      'Presentation Rubric',              gc.outsidePres        || 0],
+        ['Industry Examiner',                       'Presentation Rubric',              gc.industryPres       || 0],
+      ];
+      const actGrandTotal = actBodyRows.reduce((s, r) => s + r[2], 0);
+      const actBodyFinal = [...actBodyRows, ['TOTAL', '—', actGrandTotal]];
+      doc.autoTable({
+        startY: y,
+        head: [['Grader Role', 'Rubric / Category', 'Criteria Graded']],
+        body: actBodyFinal,
+        ...tblBase,
+        ...totalRowCB(actBodyFinal.length - 1),
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 62 }, 2: { halign: 'center', cellWidth: 28 } },
+      });
+      y = doc.lastAutoTable.finalY + 5;
+
+      // ═══════════════════════════════════════════════════════════════
+      // PAGE 2 — Average Grade by Program & FYP Type
+      // ═══════════════════════════════════════════════════════════════
+      doc.addPage();
+      y = drawHdr('Average Grade by Program & FYP Type');
+
+      // Stats table — avg ± std dev
+      y = groupHeader(y, 'Average Grade & Standard Deviation per Program (all graded criteria scores, normalized to %)');
+      const ov = res.avgOverall || {};
+      const ovf1 = ov.FYP1 || { avg: 0, std: 0, n: 0 };
+      const ovf2 = ov.FYP2 || { avg: 0, std: 0, n: 0 };
+      const avgBody = [
+        ...progList.map(p => {
+          const d = res.avgByProgramType[p] || {};
+          const f1 = d.FYP1 || { avg: 0, std: 0, n: 0 };
+          const f2 = d.FYP2 || { avg: 0, std: 0, n: 0 };
+          return [p,
+            f1.n > 0 ? `${f1.avg}%` : '—', f1.n > 0 ? `±${f1.std}%` : '—', f1.n || 0,
+            f2.n > 0 ? `${f2.avg}%` : '—', f2.n > 0 ? `±${f2.std}%` : '—', f2.n || 0];
+        }),
+        ['ALL PROGRAMS',
+          ovf1.n > 0 ? `${ovf1.avg}%` : '—', ovf1.n > 0 ? `±${ovf1.std}%` : '—', ovf1.n || 0,
+          ovf2.n > 0 ? `${ovf2.avg}%` : '—', ovf2.n > 0 ? `±${ovf2.std}%` : '—', ovf2.n || 0],
+      ];
+      doc.autoTable({
+        startY: y,
+        head: [['Program', 'FYP1 Avg Grade', 'FYP1 ± Std Dev', 'FYP1 (n)', 'FYP2 Avg Grade', 'FYP2 ± Std Dev', 'FYP2 (n)']],
+        body: avgBody,
+        ...tblBase,
+        ...totalRowCB(avgBody.length - 1),
+        columnStyles: { 0:{fontStyle:'bold',cellWidth:42}, 1:{halign:'center'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'}, 5:{halign:'center'}, 6:{halign:'center'} },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // Grouped bar chart — FYP1 vs FYP2 per program
+      const chartH = 58, axisPadL = 12, legendH = 10;
+      y = ensureSpace(y, chartH + legendH + 14);
+      y = sectionLabel(y, 'Average Grade Comparison — FYP1 (navy) vs FYP2 (teal) per Program');
+
+      const plotX = margin + axisPadL, plotW = cW - axisPadL, plotY = y + 2, plotH = chartH;
+      const nGroups = Math.max(progList.length, 1);
+      const groupW  = plotW / nGroups;
+      const barW    = Math.min(groupW * 0.3, 9);
+
+      doc.setLineWidth(0.1); doc.setDrawColor(225, 225, 225);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(130, 130, 130);
+      [0, 25, 50, 75, 100].forEach(mark => {
+        const gy = plotY + plotH - (mark / 100) * plotH;
+        doc.line(plotX, gy, plotX + plotW, gy);
+        doc.text(`${mark}%`, plotX - 2, gy + 1.2, { align: 'right' });
+      });
+
+      progList.forEach((prog, gi) => {
+        const d  = res.avgByProgramType[prog] || {};
+        const f1 = d.FYP1 || { avg: 0, std: 0, n: 0 };
+        const f2 = d.FYP2 || { avg: 0, std: 0, n: 0 };
+        const gx = plotX + gi * groupW + groupW / 2;
+        const gap = 1.5;
+
+        // FYP1 bar (navy, left)
+        const b1h = (f1.avg / 100) * plotH;
+        const b1x = gx - barW - gap / 2;
+        const b1y = plotY + plotH - b1h;
+        doc.setFillColor(...navy);
+        if (f1.n > 0 && b1h > 0.3) doc.rect(b1x, b1y, barW, b1h, 'F');
+        if (f1.n > 0) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(...navy);
+          doc.text(`${f1.avg}%`, b1x + barW / 2, b1y - 3.5, { align: 'center' });
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(100, 100, 100);
+          doc.text(`±${f1.std}%`, b1x + barW / 2, b1y - 1.2, { align: 'center' });
+        }
+
+        // FYP2 bar (teal, right)
+        const b2h = (f2.avg / 100) * plotH;
+        const b2x = gx + gap / 2;
+        const b2y = plotY + plotH - b2h;
+        doc.setFillColor(...teal);
+        if (f2.n > 0 && b2h > 0.3) doc.rect(b2x, b2y, barW, b2h, 'F');
+        if (f2.n > 0) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(...teal);
+          doc.text(`${f2.avg}%`, b2x + barW / 2, b2y - 3.5, { align: 'center' });
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(100, 100, 100);
+          doc.text(`±${f2.std}%`, b2x + barW / 2, b2y - 1.2, { align: 'center' });
+        }
+
+        // Program label (truncated)
+        const lbl = prog.length > 9 ? prog.substring(0, 8) + '…' : prog;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(60, 60, 60);
+        doc.text(lbl, gx, plotY + plotH + 4, { align: 'center' });
+      });
+
+      doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3);
+      doc.line(plotX, plotY + plotH, plotX + plotW, plotY + plotH);
+      doc.setLineWidth(0.1); doc.setDrawColor(0, 0, 0);
+      y = plotY + plotH + 9;
+
+      // Legend
+      doc.setFillColor(...navy); doc.rect(margin, y, 5, 3.5, 'F');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(60, 60, 60);
+      doc.text('FYP1', margin + 7, y + 3);
+      doc.setFillColor(...teal); doc.rect(margin + 24, y, 5, 3.5, 'F');
+      doc.text('FYP2', margin + 31, y + 3);
+      doc.setTextColor(0, 0, 0);
+      y += legendH;
+
+      // ═══════════════════════════════════════════════════════════════
+      // PAGE 3+ — Grade Distribution Histograms (existing)
+      // ═══════════════════════════════════════════════════════════════
+      doc.addPage();
+      y = drawHdr('Grade Distribution — Criteria Statistics Report');
       const buckets = res.buckets;
 
       doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
       doc.text('Each bar shows the percentage of all graded criteria (Teamwork, Peer Evaluation, Report, Presentation) whose score fell within that 5-point range. Criteria scoring below 45% are excluded from the chart but still counted in the total (n).', margin, y, { maxWidth: cW });
       doc.setTextColor(0, 0, 0);
       y += 9;
+
+      const drawHistogram = (y, title, labels, values, total) => {
+        y = sectionLabel(y, `${title}  (n = ${total} graded ${total === 1 ? 'criterion' : 'criteria'})`);
+        const cH = 52, aPadL = 12, pX = margin + aPadL, pW = cW - aPadL, pY = y + 2, pH = cH;
+        doc.setLineWidth(0.1); doc.setDrawColor(225, 225, 225);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(130, 130, 130);
+        [0, 25, 50, 75, 100].forEach(mark => {
+          const gy = pY + pH - (mark / 100) * pH;
+          doc.line(pX, gy, pX + pW, gy);
+          doc.text(`${mark}%`, pX - 2, gy + 1.2, { align: 'right' });
+        });
+        const n = labels.length, slot = pW / n, bW = slot * 0.62;
+        labels.forEach((lab, i) => {
+          const val = values[i] || 0;
+          const bH = (val / 100) * pH;
+          const bx = pX + i * slot + (slot - bW) / 2;
+          const by = pY + pH - bH;
+          doc.setFillColor(...navy);
+          if (bH > 0.3) doc.rect(bx, by, bW, bH, 'F');
+          if (val > 0) { doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(60, 60, 60); doc.text(`${val}%`, bx + bW / 2, by - 1.2, { align: 'center' }); }
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6.3); doc.setTextColor(70, 70, 70);
+          doc.text(lab, bx + bW / 2, pY + pH + 5, { align: 'center' });
+        });
+        doc.setDrawColor(150, 150, 150);
+        doc.line(pX, pY + pH, pX + pW, pY + pH);
+        doc.setTextColor(0, 0, 0); doc.setDrawColor(0, 0, 0);
+        return pY + pH + 13;
+      };
 
       // Overall
       y = ensureSpace(y, 70);
@@ -2608,18 +2807,18 @@ const Res = {
       }
 
       // By Program
-      const programs = Object.keys(res.byProgram || {});
-      if (programs.length) {
+      const programs2 = Object.keys(res.byProgram || {});
+      if (programs2.length) {
         y = ensureSpace(y, 16);
         y = groupHeader(y, 'Distribution by Program');
-        for (const p of programs) {
+        for (const p of programs2) {
           y = ensureSpace(y, 70);
           y = drawHistogram(y, p, buckets, res.byProgram[p].pct, res.byProgram[p].total);
         }
       }
 
-      doc.save(`FYP_Grade_Distribution_${(meta.year || '').replace('–', '-')}.pdf`);
-      Toast.show('Grade Distribution Report downloaded.');
+      doc.save(`FYP_Statistics_Report_${(meta.year || '').replace('–', '-')}.pdf`);
+      Toast.show('FYP Statistics Report downloaded.');
     } catch (e) { Toast.show('Report error: ' + (e.message || e), 'error'); console.error(e); }
     finally { Spinner.hide(); }
   },
