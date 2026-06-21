@@ -80,20 +80,20 @@
       <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#modalFeedback" title="Send feedback or report an issue">
         <i class="fas fa-comment-dots me-1"></i>Feedback
       </button>
-      <button class="btn btn-sm btn-outline-light d-none position-relative" id="btn-view-feedback" data-bs-toggle="modal" data-bs-target="#modalFeedbackInbox" title="View user feedback" onclick="FeedbackInbox.load()">
+      <button class="btn btn-sm btn-outline-light d-none admin-only-field" data-bs-toggle="modal" data-bs-target="#modalPublishSettings" title="Grade Publishing Settings" onclick="Publish.load()">
+        <i class="fas fa-lock-open me-1"></i>Publish
+      </button>
+      <button class="btn btn-sm btn-outline-light d-none admin-only-field position-relative" id="btn-view-feedback" data-bs-toggle="modal" data-bs-target="#modalFeedbackInbox" title="View user feedback" onclick="FeedbackInbox.load()">
         <i class="fas fa-inbox me-1"></i>Inbox
         <span id="feedback-unread-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" style="font-size:9px;"></span>
-      </button>
-      <button class="btn btn-sm btn-success d-none" id="btn-publish-settings" data-bs-toggle="modal" data-bs-target="#modalPublishSettings" title="Grade Publishing Settings (Admin)" onclick="Publish.load()">
-        <i class="fas fa-unlock-alt me-1"></i>Publish
       </button>
       <button class="btn btn-sm btn-warning d-none" id="btn-manage-users" data-bs-toggle="modal" data-bs-target="#modalManageUsers" title="Manage Supervisor Credentials (Admin)">
         <i class="fas fa-users-cog me-1"></i>Manage Users
       </button>
-      <span id="header-countdown" class="d-none small text-light" style="opacity:.85;font-size:11px;white-space:nowrap;border:1px solid rgba(255,255,255,.3);padding:3px 9px;border-radius:6px;"><i class="fas fa-clock me-1"></i><span id="header-countdown-text"></span></span>
+      <span id="header-countdown" class="d-none btn btn-sm btn-outline-light" style="pointer-events:none;cursor:default;white-space:nowrap;"><i class="fas fa-clock me-1"></i><span id="header-countdown-text"></span></span>
       <!-- User Menu -->
       <div class="dropdown">
-        <button class="btn btn-sm btn-light dropdown-toggle user-menu-btn" data-bs-toggle="dropdown">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle user-menu-btn" data-bs-toggle="dropdown">
           <i class="fas fa-user-circle me-1"></i><span id="header-sup-name">Supervisor</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
@@ -103,7 +103,7 @@
             <i class="fas fa-key me-2 text-primary"></i>Change Password
           </a></li>
           <li><hr class="dropdown-divider"/></li>
-          <li><span class="dropdown-item-text" style="font-family:monospace;font-size:10px;color:#94a3b8;">v02.21-06-26 R00</span></li>
+          <li><span class="dropdown-item-text" style="font-family:monospace;font-size:10px;color:#94a3b8;">v03.22-06-26 R06</span></li>
         </ul>
       </div>
       <button class="btn btn-sm btn-danger" onclick="Auth.logout()" title="Logout">
@@ -161,7 +161,6 @@
 
     <!-- ══════════ TAB 1: REGISTRATION ══════════ -->
     <div class="tab-pane fade show active" id="tab-reg">
-
       <div class="section-hdr">
         <h5><i class="fas fa-plus-circle me-2 text-primary"></i>Register New Project</h5>
         <button class="btn btn-sm btn-secondary admin-only-field" data-bs-toggle="modal" data-bs-target="#modalAddSupervisor">
@@ -304,15 +303,32 @@
                   </div>
                   <button class="btn btn-primary btn-sm" onclick="TW.saveConfig()"><i class="fas fa-save me-1"></i>Save Weights</button>
 
-                  <!-- Admin-only: Semester End Date -->
+                  <!-- Admin-only: Semester End Date & Week 14 Lock -->
                   <hr class="admin-only-field"/>
                   <div class="admin-only-field">
                     <label class="form-label fw-semibold">
-                      <i class="fas fa-calendar-check me-1 text-danger"></i>Semester End Date (Week 14)
+                      <i class="fas fa-calendar-check me-1 text-danger"></i>Semester End Date
                     </label>
                     <input type="date" id="cfg-semester-end" class="form-control mb-2"/>
                     <div class="form-text mb-2">Examiners cannot grade Presentation until this date passes.</div>
-                    <button class="btn btn-outline-danger btn-sm" onclick="TW.saveSemesterEndDate()"><i class="fas fa-calendar-check me-1"></i>Save End Date</button>
+                    <button class="btn btn-outline-danger btn-sm mb-3" onclick="TW.saveSemesterEndDate()"><i class="fas fa-calendar-check me-1"></i>Save End Date</button>
+
+                    <label class="form-label fw-semibold">
+                      <i class="fas fa-lock me-1 text-warning"></i>Week 14 TW Grade Lock Date
+                    </label>
+                    <input type="date" id="cfg-week14-date" class="form-control mb-2"/>
+                    <div class="form-text mb-2">Supervisors cannot edit teamwork grades after this date. Saved grades are automatically finalized.</div>
+                    <button class="btn btn-outline-warning btn-sm mb-3" onclick="TW.saveWeek14Date()"><i class="fas fa-lock me-1"></i>Save Week 14 Date</button>
+
+                    <hr style="margin:4px 0 12px;"/>
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="cfg-tw-locked" role="switch" onchange="TW.setLock(this.checked)"/>
+                        <label class="form-check-label fw-semibold" for="cfg-tw-locked">Lock TW Grading Now</label>
+                      </div>
+                      <span id="tw-lock-badge" class="badge bg-success">Unlocked</span>
+                    </div>
+                    <div class="form-text mt-1">Manually lock or unlock supervisor teamwork grading at any time, regardless of the Week 14 date.</div>
                   </div>
                 </div>
               </div>
@@ -419,6 +435,11 @@
           </div>
 
           <div id="twGradingArea" class="d-none">
+            <!-- Week 14 lock notice (shown when locked) -->
+            <div id="tw-locked-notice" class="alert alert-danger d-none mb-3">
+              <i class="fas fa-lock me-2"></i><strong>Teamwork Grading Locked:</strong> The Week 14 deadline has passed. Grades are finalized and cannot be changed.
+            </div>
+
             <!-- Individual Grading Matrix -->
             <div class="card card-section mb-4">
               <div class="card-body">
@@ -433,9 +454,11 @@
               </div>
             </div>
 
-            <button class="btn btn-success btn-lg" onclick="TW.submitGrades()">
-              <i class="fas fa-check-circle me-2"></i>Submit Teamwork Grades
-            </button>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-primary btn-lg" id="btn-tw-save-draft" onclick="TW.saveDraft()" style="min-width:180px;">
+                <i class="fas fa-save me-2"></i>Save Grades
+              </button>
+            </div>
           </div>
         </div>
 
@@ -467,6 +490,10 @@
               </div>
 
               <label class="form-label mb-2">Examiners</label>
+              <div class="alert alert-info py-2 px-3 mb-2" style="font-size:12.5px;">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Note:</strong> It is recommended to assign at least three examiners, including at least one examiner from outside the program, from another university, or from industry. Additionally, at least one Internal examiner must always be assigned to ensure the Report component is graded.
+              </div>
               <div id="examinerRows"></div>
 
               <div class="d-flex flex-column gap-2 mt-3">
@@ -563,12 +590,11 @@
           </select>
           <button class="btn btn-sm btn-primary" onclick="Res.load()"><i class="fas fa-sync me-1"></i>Load Results</button>
           <button class="btn btn-sm btn-outline-success" id="btn-export-excel" disabled onclick="Res.exportExcelSummary()" title="Downloads the summary table currently visible — student list + grade stats. For full rubric detail use Export PDF."><i class="fas fa-file-excel me-1"></i>Export Excel <small class="opacity-75">(Summary)</small></button>
-          <button class="btn btn-sm btn-outline-danger" id="btn-export-results" disabled onclick="Res.exportPDF()" title="Full detailed grading report with rubric breakdowns for all students."><i class="fas fa-file-pdf me-1"></i>Export PDF <small class="opacity-75">(Detailed)</small></button>
+          <button class="btn btn-sm btn-outline-danger" id="btn-export-pdf" disabled onclick="Res.exportPDF()"><i class="fas fa-file-pdf me-1"></i>Export PDF <small class="opacity-75">(Detailed)</small></button>
           <button class="btn btn-sm btn-outline-info d-none" id="btn-export-distribution" onclick="Res.exportDistributionReport()"><i class="fas fa-chart-bar me-1"></i>Distribution Report</button>
         </div>
       </div>
       <div id="res-incomplete-warning" class="d-none"></div>
-      <div id="res-partial-pending" class="d-none"></div>
       <div class="table-responsive">
         <table class="table table-bordered table-hover table-sm results-table">
           <thead>
@@ -658,27 +684,6 @@
   </div>
 </div>
 
-<!-- ═══════════ MODAL: Publish Settings (Admin Only) ═══════════ -->
-<div class="modal fade" id="modalPublishSettings" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title"><i class="fas fa-unlock-alt me-2"></i>Grade Publishing Settings</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">When unlocked, supervisors in that program can view results for each individually completed project without waiting for the entire cohort to finish.</p>
-        <div id="publish-settings-body">
-          <div class="text-center py-4"><div class="spinner-border text-success"></div></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- ═══════════ MODAL: Manage Users (Admin Only) ═══════════ -->
 <div class="modal fade" id="modalManageUsers" tabindex="-1" data-on-show="Admin.loadUsers()">
   <div class="modal-dialog modal-lg">
@@ -705,60 +710,9 @@
             </tbody>
           </table>
         </div>
-
-        <!-- ── Distribution Report Access ── -->
-        <hr class="my-4"/>
-        <div>
-          <div class="d-flex align-items-center justify-content-between mb-1">
-            <h6 class="mb-0 fw-bold">
-              <i class="fas fa-chart-bar me-2 text-info"></i>Distribution Report Access
-            </h6>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="Admin.distAccessSelectAll(true)">
-                <i class="fas fa-check-square me-1"></i>All
-              </button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="Admin.distAccessSelectAll(false)">
-                <i class="far fa-square me-1"></i>None
-              </button>
-            </div>
-          </div>
-          <p class="text-muted small mb-2">
-            Choose which supervisors can download the Grade Distribution PDF Report. The admin always has access regardless.
-          </p>
-          <div id="distAccessList"
-               style="max-height:220px;overflow-y:auto;border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;">
-            <div class="text-center text-muted py-3 small">
-              <span class="spinner-border spinner-border-sm me-2"></span>Loading…
-            </div>
-          </div>
-          <button class="btn btn-info btn-sm mt-2" onclick="Admin.saveDistributionAccess()">
-            <i class="fas fa-shield-alt me-1"></i>Save Access Permissions
-          </button>
-        </div>
-
-        <!-- ── Grade Boost Boundaries ── -->
-        <hr class="my-4"/>
-        <div>
-          <h6 class="mb-1 fw-bold">
-            <i class="fas fa-arrow-up me-2 text-warning"></i>Grade Boost Boundaries
-          </h6>
-          <p class="text-muted small mb-2">
-            When a student's weighted grade lands exactly on a checked boundary, it is boosted by +1 before the letter grade is assigned.
-          </p>
-          <div id="boostConfigList"
-               style="border:1px solid #dee2e6;border-radius:8px;padding:6px 10px;">
-            <div class="text-center text-muted py-3 small">
-              <span class="spinner-border spinner-border-sm me-2"></span>Loading…
-            </div>
-          </div>
-          <button class="btn btn-warning btn-sm mt-2" onclick="Admin.saveBoostConfig()">
-            <i class="fas fa-save me-1"></i>Save Boost Settings
-          </button>
-        </div>
-
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Admin.saveCredentials()">
           <i class="fas fa-save me-1"></i>Save &amp; Send Selected Emails
         </button>
@@ -830,6 +784,44 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button class="btn btn-primary" onclick="Reg.saveSupervisorToSystem()"><i class="fas fa-save me-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: Grade Publishing Settings (Admin) ═══════════ -->
+<div class="modal fade" id="modalPublishSettings" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-lock-open me-2 text-success"></i>Grade Publishing Settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="fas fa-info-circle me-1"></i>
+          <strong>Locked (default):</strong> Results are only visible when <em>all</em> projects of the same type in a program are fully graded.<br>
+          <strong>Unlocked:</strong> Supervisors can see results for each individual project as soon as that project's grades are complete — without waiting for the whole cohort.
+          For <strong>co-supervised projects</strong>, each supervisor's visibility is controlled by their own program's unlock status.
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle" id="publishTable">
+            <thead class="table-dark">
+              <tr>
+                <th>Program</th>
+                <th class="text-center" style="width:130px;">FYP 1</th>
+                <th class="text-center" style="width:130px;">FYP 2</th>
+              </tr>
+            </thead>
+            <tbody id="publishTbody">
+              <tr><td colspan="3" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="publish-status" class="small text-muted mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>

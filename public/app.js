@@ -69,7 +69,7 @@ const Auth = {
 
     const btn = document.getElementById('btn-login');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing in…';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" style="width:1rem;height:1rem;border-width:.15em;vertical-align:-.125em;"></span>Signing in…';
 
     try {
       const res = await gsr('loginSupervisor', id, pwd);
@@ -214,16 +214,12 @@ const InactivityTimer = {
 
 const App = {
   _applyAdminMode(isAdmin) {
-    const publishBtn = document.getElementById('btn-publish-settings');
-    if (publishBtn)  publishBtn.classList.toggle('d-none', !isAdmin);
-    const distBtn = document.getElementById('btn-export-distribution');
-    if (distBtn && isAdmin) distBtn.classList.remove('d-none');
     const manageBtn  = document.getElementById('btn-manage-users');
     if (manageBtn)   manageBtn.classList.toggle('d-none', !isAdmin);
-    const inboxBtn   = document.getElementById('btn-view-feedback');
-    if (inboxBtn)    inboxBtn.classList.toggle('d-none', !isAdmin);
     const progSel    = document.getElementById('res-filter-program');
     if (progSel)     progSel.classList.toggle('d-none', !isAdmin);
+    const distBtn    = document.getElementById('btn-export-distribution');
+    if (distBtn)     distBtn.classList.toggle('d-none', !isAdmin);
 
 
     if (!isAdmin) {
@@ -264,14 +260,6 @@ const App = {
       Ex.loadProjects(),
     ]);
     if (Auth.supervisor && Auth.supervisor.isAdmin) FeedbackInbox.checkUnread();
-    if (Auth.supervisor && !Auth.supervisor.isAdmin) {
-      gsrAuth('getMyDistributionAccess').then(r => {
-        if (r && r.canAccess) {
-          const distBtn = document.getElementById('btn-export-distribution');
-          if (distBtn) distBtn.classList.remove('d-none');
-        }
-      }).catch(() => {});
-    }
     document.querySelector('[data-bs-target="#tab-ex"]').addEventListener('shown.bs.tab', () => Ex.loadProjects());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('shown.bs.tab', () => TW.refreshProjectList());
     document.querySelector('[data-bs-target="#tab-tw"]').addEventListener('hide.bs.tab', () => TW.stopPolling());
@@ -539,7 +527,7 @@ const Reg = {
       for (const s of students) {
         const idKey   = s.id.toLowerCase();
         const nameKey = s.name.toLowerCase().trim();
-        if (formIdSet.has(idKey))     throw new Error(`Student ID "${s.id}" is entered more than once in this form.`);
+        if (formIdSet.has(idKey))   throw new Error(`Student ID "${s.id}" is entered more than once in this form.`);
         if (formNameSet.has(nameKey)) throw new Error(`Student name "${s.name}" is entered more than once in this form.`);
         formIdSet.add(idKey);
         formNameSet.add(nameKey);
@@ -620,6 +608,7 @@ const Reg = {
         </tr>`;
       }).join('');
     } catch (e) { console.warn('loadProjects', e); }
+    App.loadKPIs().catch(() => {});
   },
 
   editProject(id) {
@@ -767,6 +756,7 @@ const Tasks = {
     const { twTasks = [], examTasks = [], week14Label = '', semEndLabel = '' } = this._data || {};
     const total = twTasks.length + examTasks.length;
 
+    // Tab icon: green check when clear, amber exclamation when pending
     const tabIcon = document.getElementById('tasks-tab-icon');
     if (tabIcon) {
       if (total === 0) {
@@ -778,8 +768,8 @@ const Tasks = {
       }
     }
 
-    const allGoodEl = document.getElementById('tasks-all-good');
-    const pendingEl = document.getElementById('tasks-pending-list');
+    const allGoodEl   = document.getElementById('tasks-all-good');
+    const pendingEl   = document.getElementById('tasks-pending-list');
     if (!allGoodEl || !pendingEl) return;
 
     if (total === 0) {
@@ -903,6 +893,8 @@ const TW = {
   individualRubric: [],
   supervisorProjects: [],
   qrInstance:       null,
+  _week14Date:      '',
+  _twLocked:        false,
 
   async init() {
     try {
@@ -914,6 +906,14 @@ const TW = {
       document.getElementById('cfg-sup-weight').value    = cfg.supervisor_weight   || 80;
       const semEndEl = document.getElementById('cfg-semester-end');
       if (semEndEl) semEndEl.value = cfg.semester_end_date || '';
+      const w14El = document.getElementById('cfg-week14-date');
+      if (w14El) w14El.value = cfg.week14_date || '';
+      this._week14Date = cfg.week14_date || '';
+      this._twLocked = cfg.tw_locked === 'true';
+      const lockToggle = document.getElementById('cfg-tw-locked');
+      const lockBadge  = document.getElementById('tw-lock-badge');
+      if (lockToggle) lockToggle.checked = this._twLocked;
+      if (lockBadge) { lockBadge.textContent = this._twLocked ? 'Locked' : 'Unlocked'; lockBadge.className = `badge ${this._twLocked ? 'bg-danger' : 'bg-success'}`; }
 
       this._refreshMainWeightTotal();
       ['cfg-tw-weight', 'cfg-report-weight', 'cfg-pres-weight'].forEach(id => {
@@ -1197,7 +1197,18 @@ const TW = {
     const project = this.supervisorProjects.find(p => p.ProjectID === pid);
     if (!project) return;
 
-    this._renderIndividualMatrix(project.studentList || []);
+    const dateLocked = this._week14Date && new Date() > (() => { const d = new Date(this._week14Date); d.setHours(23,59,59,999); return d; })();
+    const isLocked = this._twLocked || dateLocked;
+
+    const lockNotice = document.getElementById('tw-locked-notice');
+    if (lockNotice) lockNotice.classList.toggle('d-none', !isLocked);
+
+    const saveBtn   = document.getElementById('btn-tw-save-draft');
+    const submitBtn = document.getElementById('btn-tw-submit');
+    if (saveBtn)   saveBtn.classList.toggle('d-none', isLocked);
+    if (submitBtn) submitBtn.disabled = isLocked;
+
+    this._renderIndividualMatrix(project.studentList || [], isLocked);
     area.classList.remove('d-none');
     await this.loadSavedGrades(pid);
   },
@@ -1221,16 +1232,25 @@ const TW = {
   _twLegend() {
     return `<div class="grade-scale-legend mb-3">
       <span class="gs-label">Scale:</span>
-      <span class="gs-badge gs-unsat">Unsatisfactory 55–65</span>
-      <span class="gs-badge gs-dev">Developing 66–75</span>
-      <span class="gs-badge gs-meets">Meets Expectations 76–85</span>
-      <span class="gs-badge gs-exceeds">Exceeds Expectations 86–95</span>
+      <span class="gs-badge gs-unsat">Beginning 45–59</span>
+      <span class="gs-badge gs-dev">Developing 60–75</span>
+      <span class="gs-badge gs-meets">Accomplished 76–89</span>
+      <span class="gs-badge gs-exceeds">Exemplary 90–100</span>
     </div>`;
   },
 
-  _renderIndividualMatrix(students) {
+  _renderIndividualMatrix(students, isLocked = false) {
     const c = document.getElementById('indGradeMatrix');
     if (!students.length) { c.innerHTML = '<p class="text-muted">No students in this project.</p>'; return; }
+
+    const w14Str = this._week14Date
+      ? new Date(this._week14Date).toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' })
+      : '';
+    const deadlineBanner = (!isLocked && w14Str)
+      ? `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#856404;">
+           <i class="fas fa-clock me-1"></i><strong>Note:</strong> You can edit teamwork grades until <strong>${w14Str}</strong>. After this date the system will automatically finalize all grades and editing will be disabled.
+         </div>`
+      : '';
 
     const headerCells = students.map(s =>
       `<th>${s.StudentName}<br/><small class="fw-normal opacity-75">${s.StudentID}</small></th>`
@@ -1239,13 +1259,15 @@ const TW = {
       const cells = students.map(s =>
         `<td><input type="number" class="ind-grade"
               data-criterion="${r.criterion}" data-student="${s.StudentID}"
-              min="0" max="${r.maxGrade}" step="0.5" placeholder="0–${r.maxGrade}"/>
+              min="0" max="${r.maxGrade}" step="0.5" placeholder="0–${r.maxGrade}"
+              ${isLocked ? 'disabled' : ''}/>
           <small class="graded-by-label d-block text-muted"></small></td>`
       ).join('');
       return `<tr><td>${r.criterion} <small class="text-muted">(Max: ${r.maxGrade})</small></td>${cells}</tr>`;
     }).join('');
 
     c.innerHTML = `
+      ${deadlineBanner}
       ${this._twLegend()}
       <table class="matrix-table">
         <thead><tr><th>Criterion</th>${headerCells}</tr></thead>
@@ -1279,6 +1301,16 @@ const TW = {
     const pid = document.getElementById('tw-project-sel').value;
     if (!pid) { Toast.show('Select a project first.', 'warning'); return; }
 
+    // Auto-correct grades outside allowed range before submitting
+    [...document.querySelectorAll('.ind-grade')].forEach(inp => {
+      if (inp.disabled || inp.value === '') return;
+      const v = parseFloat(inp.value), m = parseFloat(inp.max);
+      if (isNaN(v)) return;
+      if (v < m * 0.45) inp.value = m * 0.45;
+      else if (v > m) inp.value = m;
+      inp.style.outline = '';
+    });
+
     const confirmed = await new Promise(resolve => {
       const modal = document.getElementById('modalConfirmTWSubmit');
       if (!modal) { resolve(true); return; }
@@ -1290,15 +1322,6 @@ const TW = {
       bootstrap.Modal.getOrCreateInstance(modal).show();
     });
     if (!confirmed) return;
-
-    // Auto-correct grades outside allowed range before submitting
-    [...document.querySelectorAll('.ind-grade')].forEach(inp => {
-      if (inp.value === '') return;
-      const v = parseFloat(inp.value), m = parseFloat(inp.max);
-      if (isNaN(v)) return;
-      if (v < m * 0.45) inp.value = m * 0.45;
-      else if (v > m) inp.value = m;
-    });
 
     const indGrades = [...document.querySelectorAll('.ind-grade')].map(inp => ({
       criterion: inp.dataset.criterion, studentId: inp.dataset.student, grade: parseFloat(inp.value) || 0,
@@ -1312,6 +1335,59 @@ const TW = {
       await this.loadSavedGrades(pid);
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
+  },
+
+  async saveWeek14Date() {
+    if (!Auth.supervisor || !Auth.supervisor.isAdmin) { Toast.show('Only admins can set the Week 14 date.', 'warning'); return; }
+    const date = document.getElementById('cfg-week14-date').value;
+    Spinner.show();
+    try {
+      const res = await gsrAuth('saveWeek14Date', date);
+      if (!res.success) throw new Error(res.message);
+      this._week14Date = date;
+      Toast.show('Week 14 lock date saved.');
+    } catch (e) { Toast.show(e.message || e, 'error'); }
+    finally { Spinner.hide(); }
+  },
+
+  async setLock(locked) {
+    if (!Auth.supervisor || !Auth.supervisor.isAdmin) { Toast.show('Only admins can lock/unlock TW grading.', 'warning'); return; }
+    try {
+      const res = await gsrAuth('setTWLock', locked);
+      if (!res.success) throw new Error(res.message);
+      this._twLocked = locked;
+      const badge = document.getElementById('tw-lock-badge');
+      if (badge) { badge.textContent = locked ? 'Locked' : 'Unlocked'; badge.className = `badge ${locked ? 'bg-danger' : 'bg-success'}`; }
+      Toast.show(`Teamwork grading ${locked ? 'locked' : 'unlocked'}.`, locked ? 'warning' : 'success');
+    } catch (e) {
+      Toast.show(e.message || e, 'error');
+      const toggle = document.getElementById('cfg-tw-locked');
+      if (toggle) toggle.checked = this._twLocked;
+    }
+  },
+
+  async saveDraft() {
+    const pid = document.getElementById('tw-project-sel').value;
+    if (!pid) { Toast.show('Select a project first.', 'warning'); return; }
+
+    const indGrades = [...document.querySelectorAll('.ind-grade')]
+      .filter(inp => inp.value !== '' && !isNaN(parseFloat(inp.value)))
+      .map(inp => ({ criterion: inp.dataset.criterion, studentId: inp.dataset.student, grade: parseFloat(inp.value) }));
+
+    if (!indGrades.length) { Toast.show('No grades entered to save.', 'warning'); return; }
+
+    const btn = document.getElementById('btn-tw-save-draft');
+    const label = '<i class="fas fa-save me-2"></i>Save Grades';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:1rem;height:1rem;border-width:.15em;vertical-align:-.125em;"></span>'; }
+    try {
+      const res = await gsrAuth('saveTeamworkDraft', pid, indGrades);
+      if (!res.success) throw new Error(res.message);
+      Toast.show('Grades saved. You can return and edit them until the grading period closes.');
+      await this.loadSavedGrades(pid);
+    } catch (e) { Toast.show(e.message || e, 'error'); }
+    finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = label; }
+    }
   },
 
   _renderTWRubric(containerId, criteria) {
@@ -1502,6 +1578,7 @@ const Ex = {
     const row    = progSel.closest('.ex-row');
     const supSel = row.querySelector('.ex-int-sup');
 
+    // Block the logged-in supervisor AND all co-supervisors of the selected project
     const selfId     = Auth.supervisor && Auth.supervisor.id;
     const pid        = document.getElementById('ex-project-sel').value;
     const project    = this.allProjects.find(p => p.ProjectID === pid);
@@ -1511,7 +1588,7 @@ const Ex = {
     const blocked = new Set([selfId, ...projSupIds].filter(Boolean));
 
     const sups = this.allSupsCache.filter(s => s.program === progSel.value && !blocked.has(s.id));
-    supSel.innerHTML = '<option value="">Select examiner…</option>' +
+    supSel.innerHTML = '<option value="">Select supervisor…</option>' +
       sups.map(s => `<option value="${s.id}" data-email="${s.email}" data-name="${s.name}">${s.name}</option>`).join('');
   },
 
@@ -1548,7 +1625,7 @@ const Ex = {
     const examiners = this._gatherExaminers();
     if (!examiners.length) { Toast.show('Add at least one complete examiner row.', 'warning'); return; }
 
-    // Block all supervisors of this project (self + co-supervisors)
+    // Block all supervisors of this project (self + co-supervisors) from being assigned as examiners
     const project    = this.allProjects.find(p => p.ProjectID === pid);
     const projSupIds = project
       ? (project.Supervisors || '').split(',').map(x => x.trim()).filter(Boolean)
@@ -1558,13 +1635,13 @@ const Ex = {
         .filter(s => projSupIds.includes(s.id) || (Auth.supervisor && s.id === Auth.supervisor.id))
         .map(s => [s.email.toLowerCase(), s.name])
     );
-    const blockedSup = examiners.find(e => projSupEmails.has(e.email.toLowerCase()));
-    if (blockedSup) {
-      const isSelf = Auth.supervisor && blockedSup.email.toLowerCase() === Auth.supervisor.email.toLowerCase();
+    const blocked = examiners.find(e => projSupEmails.has(e.email.toLowerCase()));
+    if (blocked) {
+      const isSelf = Auth.supervisor && blocked.email.toLowerCase() === Auth.supervisor.email.toLowerCase();
       Toast.show(
         isSelf
           ? 'You cannot assign yourself as an examiner.'
-          : `"${projSupEmails.get(blockedSup.email.toLowerCase())}" is already a supervisor of this project and cannot be assigned as an examiner.`,
+          : `"${projSupEmails.get(blocked.email.toLowerCase())}" is already a supervisor of this project and cannot be assigned as an examiner.`,
         'error'
       );
       return;
@@ -1597,10 +1674,11 @@ const Ex = {
         Toast.show(`Already assigned & emailed — kept in list: ${names}`, 'warning');
       }
 
-      Toast.show(this.assignments.length
-        ? 'Examiners assigned. Use "Send All Pending Emails" in the Examiner Status panel to send invitations.'
-        : 'No new examiners to email — all were already invited.'
-      );
+      if (this.assignments.length) {
+        Toast.show('Examiners assigned. Use the "Send All Pending Emails" button in the Examiner Status table to send invitations.');
+      } else {
+        Toast.show('No new examiners to email — all were already invited.');
+      }
       this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
@@ -1611,34 +1689,19 @@ const Ex = {
     if (!pid) { Toast.show('Select a project first.', 'warning'); return; }
     Spinner.show();
     try {
-      const allExaminers = await gsrAuth('getExaminersForProject', pid);
-      const pending = allExaminers.filter(e => (e.Status || 'Assigned') === 'Assigned');
-      if (!pending.length) { Toast.show('All examiners have already been emailed.'); Spinner.hide(); return; }
-      const assignments = pending.map(e => ({
-        assignmentId: e.AssignmentID,
-        name:         e.ExaminerName,
-        email:        e.ExaminerEmail,
-        type:         e.ExaminerType,
-        token:        e.Token,
-        reportLink:   e.ReportLink || '',
-      }));
-      const res = await gsrAuth('sendExaminerEmails', pid, assignments);
+      const res = await gsrAuth('sendPendingExaminerEmails', pid);
       if (!res.success) throw new Error(res.message);
-      Toast.show(`Invitation emails sent to ${pending.length} examiner(s).`);
+      Toast.show(res.sent > 0 ? `Invitation emails sent to ${res.sent} examiner(s).` : 'All examiners have already been emailed.');
       await this.refreshStatus();
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
 
   async refreshStatus() {
-    const pid        = document.getElementById('ex-project-sel').value;
-    const c          = document.getElementById('examinerStatusTable');
+    const pid = document.getElementById('ex-project-sel').value;
+    const c   = document.getElementById('examinerStatusTable');
+    if (!pid) { c.innerHTML = '<p class="text-muted small">Select a project to see examiner status.</p>'; return; }
     const sendAllBtn = document.getElementById('btnSendAllEmails');
-    if (!pid) {
-      c.innerHTML = '<p class="text-muted small">Select a project to see examiner status.</p>';
-      if (sendAllBtn) sendAllBtn.classList.add('d-none');
-      return;
-    }
     try {
       const examiners = await gsrAuth('getExaminersForProject', pid);
       const hasPending = examiners.some(e => (e.Status || 'Assigned') === 'Assigned');
@@ -1675,7 +1738,10 @@ const Ex = {
           }).join('')}
           </tbody>
         </table>`;
-    } catch (err) { console.warn(err); }
+    } catch (err) {
+      if (sendAllBtn) sendAllBtn.classList.add('d-none');
+      console.warn(err);
+    }
   },
 
   async removeExaminer(assignmentId, pid) {
@@ -1846,11 +1912,15 @@ const Res = {
   abetByType:  {},
   statsByType: {},
 
+  _setExportEnabled(enabled) {
+    const btn = document.getElementById('btn-export-pdf');
+    if (btn) btn.disabled = !enabled;
+    const exl = document.getElementById('btn-export-excel');
+    if (exl) exl.disabled = !enabled;
+  },
+
   async load() {
-    const _expBtn = document.getElementById('btn-export-results');
-    if (_expBtn) _expBtn.disabled = true;
-    const _exlBtn = document.getElementById('btn-export-excel');
-    if (_exlBtn) _exlBtn.disabled = true;
+    this._setExportEnabled(false);
     Spinner.show();
     try {
       const res = await gsrAuth('getFinalResults');
@@ -1868,7 +1938,7 @@ const Res = {
       this._populateProgramFilter();
       this.applyFilter();
 
-      // Locked incomplete types (blocking warning)
+      // Blocking warning for locked types that are not yet fully complete
       if (res.incompleteByType && Object.keys(res.incompleteByType).length) {
         this._showIncomplete(res.incompleteByType);
       } else {
@@ -1876,15 +1946,16 @@ const Res = {
         if (warn) { warn.innerHTML = ''; warn.classList.add('d-none'); }
       }
 
-      // Partially unlocked types (soft amber notice)
+      // Soft warning for unlocked types with individually-pending projects
       if (res.partialPendingByType && Object.keys(res.partialPendingByType).length) {
         this._showPartialPending(res.partialPendingByType);
       }
 
-      const notes = [];
-      if (res.completeTypes && res.completeTypes.length) notes.push(`${res.completeTypes.join(' & ')} complete`);
-      if (res.partialPendingByType && Object.keys(res.partialPendingByType).length) notes.push('partial unlock active');
-      Toast.show(`Results loaded — ${res.results.length} student(s)${notes.length ? ' (' + notes.join(', ') + ')' : ''}.`);
+      // Outlier note if any grade was adjusted
+      const anyOutliers = res.results.some(r => r.outliersDetected);
+      const done = (res.completeTypes || []).join(' & ') || 'results';
+      const partial = res.partialPendingByType && Object.keys(res.partialPendingByType).length ? ' (partial — unlock mode)' : '';
+      Toast.show(`Results loaded — ${res.results.length} student(s) (${done}${partial}).${anyOutliers ? ' ⚠ Outlier adjustment applied.' : ''}`);
     } catch (e) { Toast.show(e.message || e, 'error'); }
     finally { Spinner.hide(); }
   },
@@ -1906,10 +1977,7 @@ const Res = {
     });
     this._render(filtered);
     this._renderSummary(this.abetByType, program ? this._computeStats(filtered) : this.statsByType);
-    const expBtn = document.getElementById('btn-export-results');
-    if (expBtn) expBtn.disabled = filtered.length === 0;
-    const exlBtn = document.getElementById('btn-export-excel');
-    if (exlBtn) exlBtn.disabled = filtered.length === 0;
+    this._setExportEnabled(filtered.length > 0);
   },
 
   _computeStats(data) {
@@ -1977,28 +2045,23 @@ const Res = {
   },
 
   _showPartialPending(partialPendingByType) {
-    const container = document.getElementById('res-partial-pending');
-    if (!container) return;
+    const warn = document.getElementById('res-incomplete-warning');
+    if (!warn) return;
     const sections = Object.entries(partialPendingByType).map(([type, projs]) => {
-      const items = projs.map(p => `<li><strong>${escHtml(p.title)}</strong></li>`).join('');
-      return `<p class="mb-1 fw-semibold">${escHtml(type)} — still pending:</p><ul class="mb-2 small">${items}</ul>`;
+      const items = projs.map(p => {
+        const bullets = p.missing.map(m => `<li>${escHtml(m)}</li>`).join('');
+        return `<li class="mb-1"><strong>${escHtml(p.title)}</strong><ul class="mb-0">${bullets}</ul></li>`;
+      }).join('');
+      return `<div class="mb-2"><strong>${type}</strong> — pending projects:<ul class="mb-0 mt-1">${items}</ul></div>`;
     }).join('');
-    container.innerHTML = `
-      <div class="alert alert-warning d-flex align-items-start gap-3 mb-3">
-        <i class="fas fa-hourglass-half fa-lg mt-1 flex-shrink-0"></i>
-        <div>
-          <strong>Partial results shown (unlock active)</strong>
-          <p class="mb-2 mt-1 small">These projects are still incomplete and will appear once grading is done:</p>
-          ${sections}
-        </div>
-      </div>`;
-    container.classList.remove('d-none');
+    warn.className = 'alert alert-warning py-2 small mb-3';
+    warn.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>
+      <strong>Partial results shown (unlock mode active).</strong> The following projects are still pending and not yet included:
+      <div class="mt-2">${sections}</div>`;
+    warn.classList.remove('d-none');
   },
 
   _render(data) {
-    const warn = document.getElementById('res-incomplete-warning');
-    if (warn) { warn.innerHTML = ''; warn.classList.add('d-none'); }
-
     const tbody = document.getElementById('tbResults');
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-5">No results available.</td></tr>';
@@ -2006,10 +2069,13 @@ const Res = {
     }
     tbody.innerHTML = data.map((r, i) => {
       const lc = r.letterGrade.replace('+', '-plus').replace(/-$/, '-minus');
+      const outlierTip = r.outliersDetected
+        ? ` <span title="Outlier detected &amp; excluded: ${(r.outlierDetails||[]).map(o=>o.criterion+' ('+o.score+')').join(', ')}" style="cursor:help;color:#d97706;">&#9888;</span>`
+        : '';
       const boostedGrade = r.finalGrade + (r.boosted ? 1 : 0);
       return `<tr>
         <td>${i + 1}</td>
-        <td class="fw-medium">${escHtml(r.studentName)}</td>
+        <td class="fw-medium">${escHtml(r.studentName)}${outlierTip}</td>
         <td><code>${escHtml(r.studentId)}</code></td>
         <td>${escHtml(r.projectTitle)}</td>
         <td><span class="badge ${r.projectType === 'FYP1' ? 'bg-primary' : 'bg-success'}">${escHtml(r.projectType)}</span></td>
@@ -2060,10 +2126,11 @@ const Res = {
     const abetLabels = { abet1a:'1a', abet2a:'2a', abet2b:'2b', abet3a:'3a', abet3b:'3b', abet4a:'4a', abet5a:'5a', abet5b:'5b', abet7a:'7a' };
     const lvlColors  = ['','#fee2e2','#fef3c7','#dbeafe','#d1fae5'];
     const lvlLabels  = ['','Level 1','Level 2','Level 3','Level 4'];
+    // Only render outcomes that have criteria linked for this FYP type (null = not applicable)
     const abetRows   = abet
       ? abetKeys.map(k => {
           const v = abet[k];
-          if (!v) return '';
+          if (!v) return null;
           if (v.notMeasured) return `<div class="d-flex align-items-center justify-content-between py-2 border-bottom" style="font-size:13px;">
             <span class="fw-medium">Outcome ${abetLabels[k]}</span>
             <div class="d-flex align-items-center gap-2">
@@ -2079,8 +2146,8 @@ const Res = {
               <span style="background:${bg};padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;">${lbl}</span>
             </div>
           </div>`;
-        }).join('')
-      : '<p class="text-muted small mb-0">No ABET data.</p>';
+        }).filter(Boolean).join('')
+      : null;
     const ptBadge = pt === 'FYP1'
       ? '<span class="badge bg-primary px-3 py-2 fs-6">FYP1</span>'
       : '<span class="badge bg-success px-3 py-2 fs-6">FYP2</span>';
@@ -2126,10 +2193,10 @@ const Res = {
               <small class="text-muted">Accepted range: 5 – 15 | Scale: 0 – 30</small>
             </div>
           </div>
-          <div>
+          ${abetRows ? `<div>
             <h6 class="fw-bold mb-3"><i class="fas fa-graduation-cap me-2 text-primary"></i>ABET Outcomes (Aggregate)</h6>
             ${abetRows}
-          </div>
+          </div>` : ''}
         </div>
       </div>`;
   },
@@ -2152,7 +2219,7 @@ const Res = {
       const typeFilter = document.getElementById('res-filter-type')?.value || '';
       const fypTypesToExport = typeFilter ? [typeFilter] : ['FYP1', 'FYP2'].filter(pt => this.allResults.some(r => r.projectType === pt));
 
-      // Load university logo (preserve aspect ratio)
+      // Load university logo (preserve aspect ratio — single fetch, get both dataUrl and dims)
       const logoUrl = 'https://usif-3jra.github.io/epme-study-plan/assets/logo_w.png';
       const loadImg = async url => {
         try {
@@ -2242,15 +2309,109 @@ const Res = {
 
       const isAdminUser = Auth.supervisor && Auth.supervisor.isAdmin;
 
-      // ── Generate one PDF per FYP type ─────────────────────────────────────
+      if (!isAdminUser) {
+        // ── Supervisor: one summary PDF ──────────────────────────────────────
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        let ys = drawHdr(doc, 'FYP Assessment — Grade Summary');
+        ys = sectionLabel(doc, ys, 'Student Grade Summary');
+        for (const fypType of fypTypesToExport) {
+          const typeProjects = res.projects.filter(p => p.type === fypType);
+          if (!typeProjects.length) continue;
+          const rows = typeProjects.flatMap(proj =>
+            proj.students.map(s => [
+              s.studentName, s.studentId, proj.title,
+              `${s.summary.teamworkPct}%`, `${s.summary.reportPct}%`, `${s.summary.presPct}%`,
+              `${s.summary.finalGrade}%`,
+              `${s.summary.finalGrade + (s.summary.boosted ? 1 : 0)}%${s.summary.boosted ? ' (+1)' : ''}`,
+              s.summary.letterGrade,
+            ])
+          );
+          if (!rows.length) continue;
+          ys = sectionLabel(doc, ys + 2, fypType);
+          doc.autoTable({
+            startY: ys, margin: { left: margin, right: margin }, theme: 'grid',
+            headStyles: { fillColor: navy, textColor: 255, fontSize: 7.5, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
+            bodyStyles: { fontSize: 7.5, cellPadding: 2 },
+            columnStyles: { 0: { cellWidth: cW*0.21 }, 1: { cellWidth: cW*0.10, halign:'center' }, 2: { cellWidth: cW*0.22 }, 3:{cellWidth:cW*0.077,halign:'center'}, 4:{cellWidth:cW*0.077,halign:'center'}, 5:{cellWidth:cW*0.077,halign:'center'}, 6:{cellWidth:cW*0.077,halign:'center'}, 7:{cellWidth:cW*0.09,halign:'center',fontStyle:'bold'}, 8:{cellWidth:cW*0.077,halign:'center',fontStyle:'bold'} },
+            head: [['Student Name', 'Student ID', 'Project', `TW (${meta.weights?.tw??35}%)`, `Report (${meta.weights?.report??35}%)`, `Pres (${meta.weights?.pres??30}%)`, 'Weight', 'Final Grade', 'Letter']],
+            body: rows,
+          });
+          ys = doc.lastAutoTable.finalY + 6;
+        }
+        // ABET
+        const abetKeys2 = ['abet1a','abet2a','abet2b','abet3a','abet3b','abet4a','abet5a','abet5b','abet7a'];
+        const abetLbl2  = { abet1a:'1a', abet2a:'2a', abet2b:'2b', abet3a:'3a', abet3b:'3b', abet4a:'4a', abet5a:'5a', abet5b:'5b', abet7a:'7a' };
+        const lvlLbl2   = ['','Level 1 — Beginning','Level 2 — Developing','Level 3 — Accomplished','Level 4 — Exemplary'];
+        for (const fypType of ['FYP1','FYP2']) {
+          const tAbet = res.abet && res.abet[fypType];
+          if (!tAbet) continue;
+          const abetRows = abetKeys2.map(k => { const v=tAbet[k]; if(!v) return null; if(v.notMeasured) return [`Outcome ${abetLbl2[k]}`, 'N/M', 'Not measured for this year']; return [`Outcome ${abetLbl2[k]}`, `${v.pct}%`, lvlLbl2[v.level]||'—']; }).filter(Boolean);
+          if (!abetRows.length) continue;
+          ys = sectionLabel(doc, ys + 2, `ABET Outcomes — ${fypType}`);
+          doc.autoTable({
+            startY: ys, margin: { left: margin, right: margin }, theme: 'grid',
+            headStyles: { fillColor: navy, textColor: 255, fontSize: 8, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
+            bodyStyles: { fontSize: 8, cellPadding: 2 },
+            columnStyles: { 0: { fontStyle:'bold', cellWidth: cW*0.18 }, 1: { halign:'center', cellWidth: cW*0.18 }, 2: { cellWidth: cW*0.64 } },
+            head: [['Outcome', 'Achievement %', 'Level of Achievement']],
+            body: abetRows,
+          });
+          ys = doc.lastAutoTable.finalY + 6;
+        }
+        // Stats
+        ys = sectionLabel(doc, ys + 2, 'Grade Statistics');
+        const statRows = ['FYP1','FYP2'].map(pt => {
+          const s = res.statistics && res.statistics[pt];
+          if (!s) return null;
+          return [pt, s.count, `${s.mean}%`, typeof s.sd === 'number' ? s.sd.toFixed(2) : s.sd];
+        }).filter(Boolean);
+        if (statRows.length) {
+          doc.autoTable({
+            startY: ys, margin: { left: margin, right: margin }, theme: 'grid',
+            headStyles: { fillColor: navy, textColor: 255, fontSize: 8, fontStyle: 'bold', cellPadding: 2, halign: 'center' },
+            bodyStyles: { fontSize: 8, cellPadding: 2, halign: 'center' },
+            columnStyles: { 0: { fontStyle:'bold', halign:'left' } },
+            head: [['Type', 'Students', 'Mean Grade', 'Std Dev']],
+            body: statRows,
+          });
+        }
+        // Per-student examiner grading pages (anonymized)
+        for (const fypType of fypTypesToExport) {
+          const examProjects = res.projects.filter(p => p.type === fypType);
+          for (const proj of examProjects) {
+            for (const stu of proj.students) {
+              if ((!stu.repTable || !stu.repTable.rows.length) && (!stu.presTable || !stu.presTable.rows.length)) continue;
+              doc.addPage();
+              ys = drawHdr(doc, `${fypType} — Examiner Grading`);
+              doc.setFillColor(...blue);
+              doc.rect(margin, ys, cW, 8, 'F');
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 255, 255);
+              doc.text(`${stu.studentName}   (${stu.studentId})`, margin + 3, ys + 5.5);
+              doc.setTextColor(0, 0, 0);
+              ys += 11;
+              ys = sectionLabel(doc, ys, `Project: ${proj.title}`);
+              ys = drawExamTable(doc, ys, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report',       true);
+              ys = drawExamTable(doc, ys, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation', true);
+            }
+          }
+        }
+
+        doc.save(`FYP_Assessment_Summary_${yr}${sem}.pdf`);
+        Toast.show('Summary PDF downloaded.');
+        return;
+      }
+
+      // ── Admin: one PDF per program per FYP type ───────────────────────────
+      const programs = [...new Set(exportProjects.map(p => p.program || 'General'))];
+      for (const program of programs) {
       for (const fypType of fypTypesToExport) {
-        const typeProjects = exportProjects.filter(p => p.type === fypType);
+        const typeProjects = exportProjects.filter(p => p.type === fypType && (p.program || 'General') === program);
         if (!typeProjects.length) continue;
 
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
         // ── Page 1: Student grade summary (matches results tab) ──────────────
-        let y = drawHdr(doc, `${fypType} — Assessment Report`);
+        let y = drawHdr(doc, `${fypType} — ${program} Assessment Report`);
         y = sectionLabel(doc, y, 'Student Grade Summary');
         let _sumIdx = 0;
         const _sumRows = typeProjects.flatMap(proj =>
@@ -2443,8 +2604,8 @@ const Res = {
             }
 
             // Examiner tables
-            y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report',       !isAdminUser);
-            y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation', !isAdminUser);
+            y = drawExamTable(doc, y, 'Examiner — Report Grading',       stu.repTable,  dkBlue, 'Report');
+            y = drawExamTable(doc, y, 'Examiner — Presentation Grading', stu.presTable, dkBlue, 'Presentation');
 
             // Grade summary
             y = sectionLabel(doc, y, 'Grade Summary');
@@ -2459,8 +2620,10 @@ const Res = {
           }
         }
 
-        doc.save(`FYP_Assessment_${fypType}_${yr}${sem}.pdf`);
-        Toast.show(`${fypType} PDF downloaded.`);
+        const pgLabel = program !== 'General' ? `_${program}` : '';
+        doc.save(`FYP_Assessment${pgLabel}_${fypType}_${yr}${sem}.pdf`);
+        Toast.show(`${program} — ${fypType} PDF downloaded.`);
+      }
       }
     } catch (e) { Toast.show('PDF error: ' + (e.message || e), 'error'); console.error(e); }
     finally { Spinner.hide(); }
@@ -2630,6 +2793,7 @@ const Res = {
         return legY + 7;
       };
 
+      const niceMax = v => { if (v <= 0) return 1; const e = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v / e) * e * (Math.ceil(v / e) >= v / e ? 1 : 1); };
       const roundUp5 = v => Math.max(1, Math.ceil(v / 5) * 5);
       const g = res.grandTotal || {};
 
@@ -2913,16 +3077,16 @@ const Res = {
       Toast.show('SheetJS library not loaded — please refresh the page.', 'error'); return;
     }
 
-    const typeFilter   = (document.getElementById('res-filter-type')?.value || '').trim();
+    const typeFilter    = (document.getElementById('res-filter-type')?.value || '').trim();
     const typesToExport = typeFilter
       ? [typeFilter]
       : ['FYP1', 'FYP2'].filter(pt => this.allResults.some(r => r.projectType === pt));
 
     if (!typesToExport.length) { Toast.show('No data to export.', 'warning'); return; }
 
-    const wb = XLSX.utils.book_new();
+    const wb         = XLSX.utils.book_new();
     const gradeOrder = ['A+','A','A-','B+','B','B-','C+','C','C-','D+','D','F'];
-    const genDate = new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' });
+    const genDate    = new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' });
 
     for (const pt of typesToExport) {
       const rows = this.allResults.filter(r => r.projectType === pt);
@@ -2933,13 +3097,11 @@ const Res = {
       const stddev = parseFloat(stats.sd)   || 0;
       const aoa    = [];
 
-      // ── Header block ──────────────────────────────────────────────────
       aoa.push(['Beirut Arab University — Faculty of Engineering']);
       aoa.push(['Final Year Project Management & Grading System']);
       aoa.push([`${pt} Results Summary  ·  Generated: ${genDate}`]);
       aoa.push([]);
 
-      // ── Student results table ─────────────────────────────────────────
       aoa.push(['#','Student Name','Student ID','Project Title','Type',
                 'Teamwork %','Report %','Presentation %','Weighted %','Final Grade','Letter Grade']);
       rows.forEach((r, i) => {
@@ -2959,7 +3121,6 @@ const Res = {
         ]);
       });
 
-      // ── Grade statistics ──────────────────────────────────────────────
       aoa.push([]);
       aoa.push(['Grade Distribution Summary']);
       aoa.push(['Total Students', rows.length]);
@@ -2974,7 +3135,6 @@ const Res = {
             : 'High Variance (SD > 15)']);
       }
 
-      // ── Letter grade breakdown ────────────────────────────────────────
       aoa.push([]);
       aoa.push(['Letter Grade Breakdown']);
       aoa.push(['Letter Grade', 'Count', 'Percentage']);
@@ -3000,237 +3160,7 @@ const Res = {
   },
 };
 
-// ── Admin: Supervisor Credential Management ───────────────────────────
-
-const Admin = {
-  _supervisors: [],
-
-  async loadUsers() {
-    if (!Auth.supervisor || !Auth.supervisor.isAdmin) return;
-    const tbody = document.getElementById('manageUsersTbody');
-    if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>';
-    this.loadDistributionAccess();
-    this.loadBoostConfig();
-    try {
-      const res = await gsrAuth('getAllSupervisorsForAdmin');
-      if (!res.success) throw new Error(res.message);
-      this._supervisors = res.supervisors;
-      tbody.innerHTML = res.supervisors.map(s => `
-        <tr>
-          <td><code>${s.id}</code></td>
-          <td>${s.name}</td>
-          <td class="small text-muted">${s.program}</td>
-          <td>
-            <input type="text" class="form-control form-control-sm cred-pwd"
-                   data-id="${s.id}" data-name="${s.name}" data-email="${s.email}"
-                   placeholder="Leave blank to keep current"/>
-          </td>
-          <td class="text-center">
-            <input type="checkbox" class="form-check-input cred-email" data-id="${s.id}"
-                   title="Send credentials email to ${s.email || 'no email'}"/>
-          </td>
-        </tr>`).join('');
-    } catch(e) { tbody.innerHTML = `<tr><td colspan="5" class="text-danger small py-2">${e.message}</td></tr>`; }
-  },
-
-  async saveCredentials() {
-    const targets = [];
-    let hasWarning = false;
-    document.querySelectorAll('#manageUsersTbody tr').forEach(row => {
-      const pwdEl   = row.querySelector('.cred-pwd');
-      const emailEl = row.querySelector('.cred-email');
-      if (!pwdEl) return;
-      const id        = pwdEl.dataset.id;
-      const password  = pwdEl.value.trim();
-      const sendEmail = emailEl ? emailEl.checked : false;
-      if (!password && !sendEmail) return;
-      if (!password) {
-        Toast.show(`Enter a password for ${pwdEl.dataset.name} before sending email.`, 'warning');
-        hasWarning = true;
-        return;
-      }
-      const sup = this._supervisors.find(s => s.id === id);
-      const email = sup ? (sup.email || '') : '';
-      if (sendEmail && !email) {
-        Toast.show(`No email on file for ${pwdEl.dataset.name} — password saved but email cannot be sent.`, 'warning');
-        hasWarning = true;
-      }
-      targets.push({ id, password, name: pwdEl.dataset.name, email, sendEmail });
-    });
-    if (!targets.length) { Toast.show('No changes to save.', 'warning'); return; }
-    Spinner.show();
-    try {
-      const res = await gsrAuth('setAndEmailCredentials', targets);
-      if (!res.success) throw new Error(res.message);
-      const sent   = res.sent   || [];
-      const failed = res.failed || [];
-      const emailRequested = targets.filter(t => t.sendEmail).length;
-      let msg = `Passwords updated for ${targets.length} supervisor(s).`;
-      if (emailRequested > 0) {
-        if (sent.length > 0)   msg += ` ${sent.length} email(s) sent.`;
-        if (failed.length > 0) msg += ` ${failed.length} email(s) failed.`;
-      }
-      Toast.show(msg, failed.length > 0 ? 'warning' : 'success');
-      bootstrap.Modal.getInstance(document.getElementById('modalManageUsers')).hide();
-    } catch(e) { Toast.show(e.message || e, 'error'); }
-    finally { Spinner.hide(); }
-  },
-
-  async loadDistributionAccess() {
-    const el = document.getElementById('distAccessList');
-    if (!el) return;
-    el.innerHTML = '<div class="text-center text-muted py-3 small"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
-    try {
-      const res = await gsrAuth('getDistributionReportAccess');
-      if (!res.success) {
-        el.innerHTML = `<p class="text-danger small mb-0 py-2">${escHtml(res.message || 'Failed to load.')}</p>`; return;
-      }
-      if (!res.supervisors || !res.supervisors.length) {
-        el.innerHTML = '<p class="text-muted small mb-0 py-2">No supervisors found.</p>'; return;
-      }
-      el.innerHTML = res.supervisors.map(s => `
-        <div class="d-flex align-items-center py-1 border-bottom" style="gap:10px;">
-          <input class="form-check-input dist-access-chk flex-shrink-0" type="checkbox"
-                 value="${escHtml(s.id)}" id="dac_${escHtml(s.id)}" ${s.hasAccess ? 'checked' : ''}>
-          <label class="form-check-label mb-0 w-100" for="dac_${escHtml(s.id)}" style="font-size:13px;cursor:pointer;">
-            <span class="fw-medium">${escHtml(s.name)}</span>
-            <span class="text-muted ms-2 small">${escHtml(s.program)}</span>
-            <code class="ms-2 text-muted" style="font-size:11px;">${escHtml(s.id)}</code>
-          </label>
-        </div>`).join('');
-    } catch(e) {
-      el.innerHTML = '<p class="text-danger small mb-0 py-2">Error loading access list.</p>';
-    }
-  },
-
-  distAccessSelectAll(checked) {
-    document.querySelectorAll('.dist-access-chk').forEach(el => { el.checked = checked; });
-  },
-
-  async saveDistributionAccess() {
-    const allowedIds = [...document.querySelectorAll('.dist-access-chk:checked')].map(el => el.value);
-    Spinner.show();
-    try {
-      const res = await gsrAuth('setDistributionReportAccess', allowedIds);
-      if (!res.success) { Toast.show(res.message || 'Failed to save.', 'error'); return; }
-      Toast.show(`Distribution report access saved — ${allowedIds.length} supervisor(s) granted.`);
-    } catch(e) { Toast.show(e.message || e, 'error'); }
-    finally { Spinner.hide(); }
-  },
-
-  // Labels describing the effect of each boost boundary
-  _boostLabel(b) {
-    const map = {
-      54: '54% → 55%  &nbsp;<span class="text-muted">(F → D-)</span>',
-      59: '59% → 60%  &nbsp;<span class="text-muted">(D- → D)</span>',
-      64: '64% → 65%  &nbsp;<span class="text-muted">(D → C-)</span>',
-      69: '69% → 70%  &nbsp;<span class="text-muted">(C- → C)</span>',
-      72: '72% → 73%  &nbsp;<span class="text-muted">(C → C+)</span>',
-      75: '75% → 76%  &nbsp;<span class="text-muted">(C+ → B-)</span>',
-      79: '79% → 80%  &nbsp;<span class="text-muted">(B- → B)</span>',
-      82: '82% → 83%  &nbsp;<span class="text-muted">(B → B+)</span>',
-      85: '85% → 86%  &nbsp;<span class="text-muted">(B+ → A-)</span>',
-      89: '89% → 90%  &nbsp;<span class="text-muted">(A- → A)</span>',
-      94: '94% → 95%  &nbsp;<span class="text-muted">(A → A+)</span>',
-    };
-    return map[b] || `${b}%`;
-  },
-
-  async loadBoostConfig() {
-    const el = document.getElementById('boostConfigList');
-    if (!el) return;
-    el.innerHTML = '<div class="text-center text-muted py-3 small"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>';
-    try {
-      const res = await gsrAuth('getGradeBoostConfig');
-      if (!res.success) { el.innerHTML = `<p class="text-danger small mb-0 py-2">${escHtml(res.message || 'Failed to load.')}</p>`; return; }
-      el.innerHTML = `<div class="row g-0">${res.boundaries.map(({ boundary, boosted }) => `
-        <div class="col-12 col-sm-6 d-flex align-items-center py-1 border-bottom" style="gap:10px;">
-          <input class="form-check-input boost-cfg-chk flex-shrink-0" type="checkbox"
-                 value="${boundary}" id="bc_${boundary}" ${boosted ? 'checked' : ''}>
-          <label class="form-check-label mb-0" for="bc_${boundary}" style="font-size:13px;cursor:pointer;font-family:monospace;">
-            ${this._boostLabel(boundary)}
-          </label>
-        </div>`).join('')}</div>`;
-    } catch(e) { el.innerHTML = '<p class="text-danger small mb-0 py-2">Error loading boost configuration.</p>'; }
-  },
-
-  async saveBoostConfig() {
-    const config = [...document.querySelectorAll('.boost-cfg-chk')].map(el => ({
-      boundary: Number(el.value),
-      boosted:  el.checked,
-    }));
-    Spinner.show();
-    try {
-      const res = await gsrAuth('setGradeBoostConfig', config);
-      if (!res.success) { Toast.show(res.message || 'Failed to save.', 'error'); return; }
-      const active = config.filter(c => c.boosted).length;
-      Toast.show(`Boost settings saved — ${active} of ${config.length} boundaries active.`);
-    } catch(e) { Toast.show(e.message || e, 'error'); }
-    finally { Spinner.hide(); }
-  },
-};
-
-// ── Grade Publish Settings (Admin) ────────────────────────────────────
-
-const Publish = {
-  _current: [],
-
-  async load() {
-    const body = document.getElementById('publish-settings-body');
-    if (body) body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-success"></div></div>';
-    try {
-      const res = await gsrAuth('getProgramPublishSettings');
-      if (!res.success) { Toast.show(res.message || 'Failed to load publish settings.', 'error'); return; }
-      this._current = res.settings || [];
-      this._render();
-    } catch (e) { Toast.show(e.message || e, 'error'); }
-  },
-
-  _render() {
-    const body = document.getElementById('publish-settings-body');
-    if (!body) return;
-    if (!this._current.length) {
-      body.innerHTML = '<p class="text-muted">No programs found.</p>';
-      return;
-    }
-    const rows = this._current.map(s => `
-      <tr>
-        <td>${escHtml(s.program_name)}</td>
-        <td class="text-center">
-          <div class="form-check form-switch d-flex justify-content-center">
-            <input class="form-check-input" type="checkbox" id="pub-fyp1-${escHtml(s.program_name)}"
-              ${s.unlocked_fyp1 ? 'checked' : ''}
-              onchange="Publish.toggle('${escHtml(s.program_name).replace(/'/g,"\\'")}','FYP1',this.checked)">
-          </div>
-        </td>
-        <td class="text-center">
-          <div class="form-check form-switch d-flex justify-content-center">
-            <input class="form-check-input" type="checkbox" id="pub-fyp2-${escHtml(s.program_name)}"
-              ${s.unlocked_fyp2 ? 'checked' : ''}
-              onchange="Publish.toggle('${escHtml(s.program_name).replace(/'/g,"\\'")}','FYP2',this.checked)">
-          </div>
-        </td>
-      </tr>`).join('');
-    body.innerHTML = `
-      <table class="table table-sm table-bordered align-middle">
-        <thead class="table-success"><tr><th>Program</th><th class="text-center">FYP 1 Unlocked</th><th class="text-center">FYP 2 Unlocked</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-  },
-
-  async toggle(programName, type, checked) {
-    try {
-      const res = await gsrAuth('setProgramPublish', programName, type, checked);
-      if (!res.success) { Toast.show(res.message || 'Failed to update setting.', 'error'); await this.load(); return; }
-      const entry = this._current.find(s => s.program_name === programName);
-      if (entry) entry[type === 'FYP1' ? 'unlocked_fyp1' : 'unlocked_fyp2'] = checked;
-      Toast.show(`${programName} — ${type} ${checked ? 'unlocked' : 'locked'}.`);
-    } catch (e) { Toast.show(e.message || e, 'error'); await this.load(); }
-  },
-};
-
-// ── Feedback Inbox (Admin) ────────────────────────────────────────────
+// ── Feedback Inbox (admin) ────────────────────────────────────────────
 
 const FeedbackInbox = {
   async load() {
@@ -3297,6 +3227,152 @@ const Feedback = {
       errEl.classList.remove('d-none');
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send Feedback';
+    }
+  },
+};
+
+// ── Admin: Supervisor Credential Management ───────────────────────────
+
+const Admin = {
+  _supervisors: [],
+
+  async loadUsers() {
+    if (!Auth.supervisor || !Auth.supervisor.isAdmin) return;
+    const tbody = document.getElementById('manageUsersTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>';
+    try {
+      const res = await gsrAuth('getAllSupervisorsForAdmin');
+      if (!res.success) throw new Error(res.message);
+      this._supervisors = res.supervisors;
+      tbody.innerHTML = res.supervisors.map(s => `
+        <tr>
+          <td><code>${s.id}</code></td>
+          <td>${s.name}</td>
+          <td class="small text-muted">${s.program}</td>
+          <td>
+            <input type="text" class="form-control form-control-sm cred-pwd"
+                   data-id="${s.id}" data-name="${s.name}" data-email="${s.email}"
+                   placeholder="Leave blank to keep current"/>
+          </td>
+          <td class="text-center">
+            <input type="checkbox" class="form-check-input cred-email" data-id="${s.id}"
+                   title="Send credentials email to ${s.email || 'no email'}"/>
+          </td>
+        </tr>`).join('');
+    } catch(e) { tbody.innerHTML = `<tr><td colspan="5" class="text-danger small py-2">${e.message}</td></tr>`; }
+  },
+
+  async saveCredentials() {
+    const targets = [];
+    let hasWarning = false;
+    document.querySelectorAll('#manageUsersTbody tr').forEach(row => {
+      const pwdEl   = row.querySelector('.cred-pwd');
+      const emailEl = row.querySelector('.cred-email');
+      if (!pwdEl) return;
+      const id        = pwdEl.dataset.id;
+      const password  = pwdEl.value.trim();
+      const sendEmail = emailEl ? emailEl.checked : false;
+      if (!password && !sendEmail) return;
+      if (!password) {
+        Toast.show(`Enter a password for ${pwdEl.dataset.name} before sending email.`, 'warning');
+        hasWarning = true;
+        return;
+      }
+      const sup = this._supervisors.find(s => s.id === id);
+      const email = sup ? (sup.email || '') : '';
+      if (sendEmail && !email) {
+        Toast.show(`No email on file for ${pwdEl.dataset.name} — password saved but email cannot be sent.`, 'warning');
+        hasWarning = true;
+      }
+      targets.push({ id, password, name: pwdEl.dataset.name, email, sendEmail });
+    });
+    if (!targets.length) { Toast.show('No changes to save.', 'warning'); return; }
+    Spinner.show();
+    try {
+      const res = await gsrAuth('setAndEmailCredentials', targets);
+      if (!res.success) throw new Error(res.message);
+      const sent   = res.sent   || [];
+      const failed = res.failed || [];
+      const emailRequested = targets.filter(t => t.sendEmail).length;
+      let msg = `Passwords updated for ${targets.length} supervisor(s).`;
+      if (emailRequested > 0) {
+        if (sent.length > 0)   msg += ` ${sent.length} email(s) sent.`;
+        if (failed.length > 0) msg += ` ${failed.length} email(s) failed.`;
+      }
+      Toast.show(msg, failed.length > 0 ? 'warning' : 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modalManageUsers')).hide();
+    } catch(e) { Toast.show(e.message || e, 'error'); }
+    finally { Spinner.hide(); }
+  },
+};
+
+// ── Grade Publishing Settings (Admin) ─────────────────────────────────
+
+const Publish = {
+  _current: [], // cached settings
+
+  async load() {
+    const tbody  = document.getElementById('publishTbody');
+    const status = document.getElementById('publish-status');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</td></tr>';
+    if (status) status.textContent = '';
+    try {
+      const res = await gsrAuth('getProgramPublishSettings');
+      if (!res.success) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="3" class="text-danger text-center py-3">${escHtml(res.message || 'Error')}</td></tr>`;
+        return;
+      }
+      this._current = res.settings || [];
+      if (!this._current.length) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">No programs configured.</td></tr>';
+        return;
+      }
+      if (tbody) tbody.innerHTML = this._current.map(s => {
+        const p = escHtml(s.programName);
+        return `<tr>
+          <td class="small fw-medium">${p}</td>
+          <td class="text-center">
+            <div class="form-check form-switch d-flex align-items-center justify-content-center gap-2 mb-0">
+              <input class="form-check-input" type="checkbox" role="switch" id="pub-fyp1-${p}" ${s.unlockedFyp1 ? 'checked' : ''}
+                onchange="Publish.toggle('${p}', 'fyp1', this.checked)">
+              <label class="form-check-label small ${s.unlockedFyp1 ? 'text-success fw-semibold' : 'text-muted'}" for="pub-fyp1-${p}">
+                ${s.unlockedFyp1 ? 'Unlocked' : 'Locked'}
+              </label>
+            </div>
+          </td>
+          <td class="text-center">
+            <div class="form-check form-switch d-flex align-items-center justify-content-center gap-2 mb-0">
+              <input class="form-check-input" type="checkbox" role="switch" id="pub-fyp2-${p}" ${s.unlockedFyp2 ? 'checked' : ''}
+                onchange="Publish.toggle('${p}', 'fyp2', this.checked)">
+              <label class="form-check-label small ${s.unlockedFyp2 ? 'text-success fw-semibold' : 'text-muted'}" for="pub-fyp2-${p}">
+                ${s.unlockedFyp2 ? 'Unlocked' : 'Locked'}
+              </label>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="3" class="text-danger text-center py-3">${escHtml(e.message || String(e))}</td></tr>`;
+    }
+  },
+
+  async toggle(programName, type, checked) {
+    const status = document.getElementById('publish-status');
+    if (status) { status.className = 'small text-muted mt-2'; status.textContent = 'Saving…'; }
+    try {
+      // Read both current values from DOM so we always send complete state
+      const el1 = document.getElementById(`pub-fyp1-${programName}`);
+      const el2 = document.getElementById(`pub-fyp2-${programName}`);
+      const fyp1 = type === 'fyp1' ? checked : (el1 ? el1.checked : false);
+      const fyp2 = type === 'fyp2' ? checked : (el2 ? el2.checked : false);
+      const res = await gsrAuth('setProgramPublish', programName, fyp1, fyp2);
+      if (!res.success) throw new Error(res.message);
+      if (status) { status.className = 'small text-success mt-2'; status.textContent = `✓ ${programName} updated.`; }
+      setTimeout(() => { if (status) status.textContent = ''; }, 3000);
+      await this.load(); // refresh labels
+    } catch (e) {
+      if (status) { status.className = 'small text-danger mt-2'; status.textContent = `Error: ${e.message || e}`; }
     }
   },
 };

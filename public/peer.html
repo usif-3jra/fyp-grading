@@ -250,7 +250,7 @@ function renderEvalForm(data) {
     const section = document.createElement('div');
     section.className = 'peer-section';
     const questionsHTML = data.questions.map((q, i) => {
-      const options = Array.from({ length: q.MaxGrade + 1 }, (_, v) =>
+      const options = Array.from({ length: Math.min(q.MaxGrade, 10) + 1 }, (_, v) =>
         `<option value="${v}">${v}</option>`
       ).join('');
       return `
