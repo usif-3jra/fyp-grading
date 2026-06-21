@@ -315,7 +315,7 @@
   <p class="section-sub">The complete grading lifecycle, from account creation to final PDF export.</p>
 
   <div class="flowchart-wrap">
-    <svg viewBox="0 0 740 870" width="740" height="870" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
+    <svg viewBox="0 0 860 870" width="860" height="870" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">
       <defs>
         <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
           <path d="M1,1 L7,4 L1,7 Z" fill="#64748b"/>
@@ -325,6 +325,9 @@
         </marker>
         <marker id="arr-g" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
           <path d="M1,1 L7,4 L1,7 Z" fill="#16a34a"/>
+        </marker>
+        <marker id="arr-t" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M1,1 L7,4 L1,7 Z" fill="#0891b2"/>
         </marker>
         <filter id="shadow" x="-8%" y="-10%" width="120%" height="130%">
           <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000015"/>
@@ -393,6 +396,13 @@
       <text x="350" y="236" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Supervisor Logs In</text>
       <text x="350" y="252" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="10">Supervisor · Uses emailed credentials</text>
 
+      <!-- My Tasks annotation (left of S3) -->
+      <line x1="215" y1="240" x2="137" y2="240" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-t)"/>
+      <rect x="18" y="219" width="117" height="44" rx="8" fill="#e0f2fe" stroke="#0891b2" stroke-width="1.5"/>
+      <text x="77" y="234" text-anchor="middle" fill="#075985" font-size="9" font-weight="700">📋 My Tasks Tab</text>
+      <text x="77" y="247" text-anchor="middle" fill="#075985" font-size="8.5">Pending tasks visible</text>
+      <text x="77" y="259" text-anchor="middle" fill="#075985" font-size="8.5">after login · all users</text>
+
       <!-- S4: Register Projects & Students -->
       <rect x="215" y="297" width="270" height="46" rx="10" fill="#2563eb" filter="url(#shadow)"/>
       <text x="350" y="316" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">Register FYP Projects &amp; Students</text>
@@ -452,9 +462,29 @@
       <text x="560" y="397" text-anchor="middle" fill="#92400e" font-size="9" font-weight="700">📧 Invitation Email</text>
       <text x="560" y="410" text-anchor="middle" fill="#92400e" font-size="8.5">Sent to each examiner</text>
 
+      <!-- Examiner grade submission → confirmation email
+           Route: up from examiner left-edge center (clear of fork bar) → left above parallel section → down to annotation level on left side -->
+      <polyline points="268,488 268,452 74,452 74,552"
+        fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+      <rect x="16" y="554" width="118" height="36" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="75" y="568" text-anchor="middle" fill="#92400e" font-size="9" font-weight="700">📧 Confirmation Email</text>
+      <text x="75" y="581" text-anchor="middle" fill="#92400e" font-size="8.5">Sent to each examiner</text>
+
+      <!-- ══ EXPORT FEATURE ANNOTATIONS (right of S6 / Load Final Results) ══ -->
+      <!-- Distribution Report: Admin only — arrow from S6 right edge -->
+      <line x1="485" y1="650" x2="494" y2="650" stroke="#1e3a5f" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+      <rect x="496" y="634" width="152" height="32" rx="8" fill="#eff6ff" stroke="#1e3a5f" stroke-width="1.5"/>
+      <text x="572" y="647" text-anchor="middle" fill="#1e3a5f" font-size="9" font-weight="700">📊 Distribution Report</text>
+      <text x="572" y="660" text-anchor="middle" fill="#1e3a5f" font-size="8.5">Admin only</text>
+
+      <!-- Export Excel: All users — floating, no single-step source -->
+      <rect x="496" y="670" width="152" height="32" rx="8" fill="#f0fdf4" stroke="#166534" stroke-width="1.5"/>
+      <text x="572" y="683" text-anchor="middle" fill="#166534" font-size="9" font-weight="700">📥 Export Excel</text>
+      <text x="572" y="696" text-anchor="middle" fill="#166534" font-size="8.5">All users</text>
+
       <!-- ══ LEGEND ══ -->
-      <rect x="20" y="790" width="700" height="66" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
-      <text x="370" y="807" text-anchor="middle" fill="#64748b" font-size="10" font-weight="700">LEGEND</text>
+      <rect x="20" y="790" width="820" height="66" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="430" y="807" text-anchor="middle" fill="#64748b" font-size="10" font-weight="700">LEGEND</text>
 
       <rect x="36"  y="816" width="11" height="11" rx="3" fill="#1e3a5f"/>
       <text x="52"  y="826" fill="#374151" font-size="10">Admin</text>
@@ -470,6 +500,8 @@
       <text x="440" y="826" fill="#374151" font-size="10">Export / Error</text>
       <rect x="528" y="816" width="11" height="11" rx="3" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
       <text x="544" y="826" fill="#374151" font-size="10">Email notification</text>
+      <rect x="646" y="816" width="11" height="11" rx="3" fill="#e0f2fe" stroke="#0891b2" stroke-width="1"/>
+      <text x="662" y="826" fill="#374151" font-size="10">System feature</text>
 
       <line x1="36"  y1="848" x2="52"  y2="848" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
       <text x="58"  y="852" fill="#374151" font-size="10">Normal flow</text>
@@ -479,6 +511,8 @@
       <text x="270" y="852" fill="#374151" font-size="10">Incomplete — retry loop</text>
       <line x1="410" y1="848" x2="420" y2="848" stroke="#334155" stroke-width="3.5" stroke-linecap="round"/>
       <text x="426" y="852" fill="#374151" font-size="10">Fork / Join (parallel)</text>
+      <line x1="560" y1="848" x2="572" y2="848" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-t)"/>
+      <text x="578" y="852" fill="#374151" font-size="10">Feature tab access</text>
     </svg>
   </div>
 </div>
@@ -559,6 +593,7 @@
       <div class="step-body">
         <h4>Log In</h4>
         <p>Use the Supervisor ID and password sent to your email by the admin. Visit the system URL and enter your credentials on the login screen.</p>
+        <div class="tip"><i class="fas fa-tasks me-1"></i>After logging in, check the <strong>My Tasks</strong> tab to see all pending actions — unsubmitted TW grades, pending examiner assignments, and direct links to any open grading portals.</div>
       </div>
     </div>
     <div class="step">
@@ -684,6 +719,7 @@
         <h4>Grade the Presentation (All Examiner Types)</h4>
         <p>After the student presentation, complete the Presentation rubric criteria. Use the <em>View Presentation Rubric</em> reference image. Click <em>Submit Presentation Grades</em>.</p>
         <div class="tip"><i class="fas fa-info-circle me-1"></i>Grades can be saved partially and submitted later. Each section is submitted independently.</div>
+        <div class="tip"><i class="fas fa-envelope me-1"></i>After each submission (Report and/or Presentation), a <strong>confirmation email</strong> is automatically sent to you confirming that your grades were recorded successfully.</div>
       </div>
     </div>
   </div>
